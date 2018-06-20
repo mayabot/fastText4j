@@ -33,7 +33,7 @@ repositories {
 
 ### Gradle
 ```
-compile 'com.mayabot:mynlp-fasttext:1.1.0'
+compile 'com.mayabot:fastText4j:1.1.0'
 ```
 
 ### Maven
@@ -41,7 +41,7 @@ compile 'com.mayabot:mynlp-fasttext:1.1.0'
 <dependency>
   <!-- mynlp-fasttest @ https://mynlp.info/ -->
   <groupId>com.mayabot</groupId>
-  <artifactId>mynlp-fasttext</artifactId>
+  <artifactId>fastText4j</artifactId>
   <version>1.1.0</version>
 </dependency>
 ```
