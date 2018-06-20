@@ -1,0 +1,89 @@
+
+plugins {
+    id "org.jetbrains.kotlin.jvm" version "1.2.50"
+    id 'java'
+    id 'maven-publish'
+}
+
+
+description = 'FastText的java版本实现，兼容facebook发布的原生预训练模型。'
+version = "1.1.0"
+group = "com.mayabot"
+
+sourceSets {
+    example {
+        compileClasspath += sourceSets.main.runtimeClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+
+    main.kotlin.srcDirs = main.java.srcDirs
+    test.kotlin.srcDirs = test.java.srcDirs
+    example.kotlin.srcDirs = example.java.srcDirs
+}
+
+dependencies {
+
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+
+    compile group: 'com.carrotsearch', name: 'hppc', version: '0.7.3'
+    compile group: 'com.google.guava', name: 'guava', version: "19.0"
+
+    testCompile 'junit:junit:4.12'
+}
+
+
+task sourceJar(type: Jar) {
+    from sourceSets.main.allJava
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier "javadoc"
+    from javadoc.destinationDir
+}
+
+
+tasks.withType(Javadoc) {
+    options.addStringOption('Xdoclint:none', '-quiet')
+    options.encoding = "UTF-8"
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+    options.compilerArgs += ["-Xdoclint:none", "-Xlint:none", "-nowarn"]
+}
+
+
+publishing {
+    publications {
+        java(MavenPublication) {
+            from components.java
+
+            artifact sourceJar {
+                classifier "sources"
+            }
+
+            artifact javadocJar {
+                classifier "javadoc"
+            }
+        }
+
+    }
+
+    repositories {
+
+        maven {
+            name 'MayaPublic'
+            if (project.version.endsWith('-SNAPSHOT')) {
+                url "${maya_pub_snapshot}"
+            } else {
+                url = "${maya_pub_release}"
+            }
+            credentials{
+                username "${maya_pub_user}"
+                password "${maya_pub_pass}"
+            }
+        }
+    }
+
+
+}
