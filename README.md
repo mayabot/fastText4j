@@ -17,27 +17,37 @@
 
    官方提供的中文wiki模型大小为2.8G，需要jvm至少4G才能运行，需要加载时间也很长。通过mmap方式，只需少量内存，在3秒左右即可加载完毕模型文件。
 
-## Building and Intalling
+## Intalling
 
 目前还没有发布到maven中央仓库，在mayabot的公开仓库中
 
-在Gradle增加一个maven仓库地址
+在Gradle增加一个maven仓库地址 https://nexus.mayabot.com/content/groups/public/
+
+### Gradle
 ```
 repositories {
         maven {
             url = "https://nexus.mayabot.com/content/groups/public/"
         }
 }
-```
 
+dependencies {
+    compile 'com.mayabot:fastText4j:1.1.0'
+}
 
-### Gradle
-```
-compile 'com.mayabot:fastText4j:1.1.0'
 ```
 
 ### Maven
-```
+```xml
+
+<repositories>
+    <repository>
+        <id>mayabot-public</id>
+        <url>http://nexus.mayabot.com/content/groups/public/</url>
+    </repository>
+</repositories>
+	
+	
 <dependency>
   <!-- mynlp-fasttest @ https://mynlp.info/ -->
   <groupId>com.mayabot</groupId>
@@ -46,6 +56,59 @@ compile 'com.mayabot:fastText4j:1.1.0'
 </dependency>
 ```
 
+## Example use cases
+
+### 1.词向量表示学习
+```java
+File file = new File("data/fasttext/data.text");
+
+FastText fastText = FastText.train(file, ModelName.sg);
+
+fastText.saveModel("data/fasttext/model.bin");
+```
+data.txt是训练文件，采用utf-8编码存储。训练文本中词需要预先分词，采用空格分割。默认设置下，采用3-6的char ngram。
+除了sg算法，你还可以采用cow算法。如果需要更多的参数设置，请提供TrainArgs对象进行设置。
+
+### 2.分类模型训练
+```java
+File file = new File("data/fasttext/data.txt");
+
+FastText fastText = FastText.train(file, ModelName.sup);
+
+fastText.saveModel("data/fasttext/model.bin");
+```
+data.txt同样也是utf-8编码的文件，每一行一个example，同样需要预先分词。每一行中存在一个```__label__```为前缀的字符串，表示该example的分类目标，比如```__label__正面```，每个example可以存在多个label。你可以设置TrainArgs中label属性，指定自定义的前缀。
+获得模型后，可以通过predict方法进行分类结果预测。
+
+
+
+### 3.加载官方模型文件，另存为java模型格式
+```java
+FastText fastText = FastText.loadFasttextBinModel("data/fasttext/wiki.zh.bin");
+fastText.saveModel("data/fasttext/wiki.model");
+```
+
+### 4.分类预测
+```java
+//predict传入一个分词后的结果
+FastText fastText = FastText.loadCModel("data/fasttext/wiki.zh.bin");
+List<FloatStringPair> predict = fastText.predict(Arrays.asList("fastText在预测标签时使用了非线性激活函数".split(" ")), 5);
+```
+
+### 5.Nearest Neighbor 近邻查询
+```java
+FastText fastText = FastText.loadCModel("data/fasttext/wiki.zh.bin");
+
+List<FloatStringPair> predict = fastText.nearestNeighbor("中国",5);
+```
+
+### 6.Analogies 类比
+给定三个词语A、B、C，返回与(A - B + C)语义距离最近的词语及其相似度列表。
+```java
+FastText fastText = FastText.loadCModel("data/fasttext/wiki.zh.bin");
+
+List<FloatStringPair> predict = fastText.analogies("国王","皇后","男",5);
+```
 
 ## Api
 ```java
@@ -113,59 +176,6 @@ compile 'com.mayabot:fastText4j:1.1.0'
  Fasttext.loadFasttextBinModel(String binFile)
 ```
 
-## Example use cases
-
-### 1.词向量表示学习
-```java
-File file = new File("data/fasttext/data.text");
-
-FastText fastText = FastText.train(file, ModelName.sg);
-
-fastText.saveModel("data/fasttext/model.bin");
-```
-data.txt是训练文件，采用utf-8编码存储。训练文本中词需要预先分词，采用空格分割。默认设置下，采用3-6的char ngram。
-除了sg算法，你还可以采用cow算法。如果需要更多的参数设置，请提供TrainArgs对象进行设置。
-
-### 2.分类模型训练
-```java
-File file = new File("data/fasttext/data.txt");
-
-FastText fastText = FastText.train(file, ModelName.sup);
-
-fastText.saveModel("data/fasttext/model.bin");
-```
-data.txt同样也是utf-8编码的文件，每一行一个example，同样需要预先分词。每一行中存在一个```__label__```为前缀的字符串，表示该example的分类目标，比如```__label__正面```，每个example可以存在多个label。你可以设置TrainArgs中label属性，指定自定义的前缀。
-获得模型后，可以通过predict方法进行分类结果预测。
-
-
-
-### 3.加载官方模型文件，另存为java模型格式
-```java
-FastText fastText = FastText.loadFasttextBinModel("data/fasttext/wiki.zh.bin");
-fastText.saveModel("data/fasttext/wiki.model");
-```
-
-### 4.分类预测
-```java
-//predict传入一个分词后的结果
-FastText fastText = FastText.loadCModel("data/fasttext/wiki.zh.bin");
-List<FloatStringPair> predict = fastText.predict(Arrays.asList("fastText在预测标签时使用了非线性激活函数".split(" ")), 5);
-```
-
-### 5.Nearest Neighbor 近邻查询
-```java
-FastText fastText = FastText.loadCModel("data/fasttext/wiki.zh.bin");
-
-List<FloatStringPair> predict = fastText.nearestNeighbor("中国",5);
-```
-
-### 6.Analogies 类比
-给定三个词语A、B、C，返回与(A - B + C)语义距离最近的词语及其相似度列表。
-```java
-FastText fastText = FastText.loadCModel("data/fasttext/wiki.zh.bin");
-
-List<FloatStringPair> predict = fastText.analogies("国王","皇后","男",5);
-```
 
 ## TrainArgs和相关参数
 java版本的参数和C++版本的保持一致，参考如下：
