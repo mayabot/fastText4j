@@ -1,27 +1,29 @@
-## 介绍
+## Introduction
 
- [Fasttext](https://github.com/facebookresearch/fastText/)是facebookresearch的一个text representation and classification C++程序库。这个库提供两个功能，文本分类和词嵌入学习。
+ [Fasttext](https://github.com/facebookresearch/fastText/)is a C++ library for text representation and classification by facebookresearch. It implements text classification and word embedding learning.
 
 ## mynlp-fasttext
 
- 在mynlp中提供一个fasttext java版本的实现，使用kotlin编写。有如下特征:
+  A java version implementation of fasttext in kotlin. Features:
 
- * 100% 纯java实现
- * 兼容原版模型文件
+ * 100% in java
+ * Compatible with original C++ model
 
-   fasttext官方提供各种预先训练的模型，可以直接读取
- * 兼容原版乘积量化压缩模型
- * java版本也提供训练API（性能与原版相当）
- * 支持私有的存储格式
- * 在私有存储格式里，支持mmap读取模型文件
+   It can read all trained models from fasttext directly
+ * Compatible with the original product quantizer compression model
+ * Provides APIs for training(with equivalent performance)
+ * Support for customing storage formats
+ * Support reading model files in mmap
 
-   官方提供的中文wiki模型大小为2.8G，需要jvm至少4G才能运行，需要加载时间也很长。通过mmap方式，只需少量内存，在3秒左右即可加载完毕模型文件。
+The scale of official model for chinese wiki is about 2.8G, which needs, at least, 4G for jvm in general. Moreover, it takes longer time for loading model files than C++ version.
 
-## Intalling
+But it could be much optimised through mmap with limited RAM and time(around 3 seconds).
 
-目前还没有发布到maven中央仓库，在mayabot的公开仓库中
+## Installing
 
-在Gradle增加一个maven仓库地址 https://nexus.mayabot.com/content/groups/public/
+It is released to mayabot's public pool only, not in maven repository yet.
+
+Maven link in gradle  https://nexus.mayabot.com/content/groups/public/
 
 ### Gradle
 ```
@@ -58,7 +60,7 @@ dependencies {
 
 ## Example use cases
 
-### 1.词向量表示学习
+### 1.Word embedding model
 ```java
 File file = new File("data/fasttext/data.text");
 
@@ -66,10 +68,9 @@ FastText fastText = FastText.train(file, ModelName.sg);
 
 fastText.saveModel("data/fasttext/model.bin");
 ```
-data.txt是训练文件，采用utf-8编码存储。训练文本中词需要预先分词，采用空格分割。默认设置下，采用3-6的char ngram。
-除了sg算法，你还可以采用cow算法。如果需要更多的参数设置，请提供TrainArgs对象进行设置。
+data.txt is the file of data, stored in utf-8. Before training, it is necessary to do word spliting to get training set. By default, it will use 3-6 char ngram. Additionally, cow algorithm is implemented as well. For more parameter tuning if needed, please provide TrainArgs object.
 
-### 2.分类模型训练
+### 2.Classification model
 ```java
 File file = new File("data/fasttext/data.txt");
 
@@ -77,33 +78,34 @@ FastText fastText = FastText.train(file, ModelName.sup);
 
 fastText.saveModel("data/fasttext/model.bin");
 ```
-data.txt同样也是utf-8编码的文件，每一行一个example，同样需要预先分词。每一行中存在一个```__label__```为前缀的字符串，表示该example的分类目标，比如```__label__正面```，每个example可以存在多个label。你可以设置TrainArgs中label属性，指定自定义的前缀。
-获得模型后，可以通过predict方法进行分类结果预测。
+data.txt is also encoded in utf-8 with one sample each line. And it needs to do word spliting beforehand as well. There is a string starting with ```__label__``` in each line，representing the classifying target, such as ```__label__正面```. Each sample could have  multiple label. Through the attribute 'label' in TrainArgs, you can customise the head. 
+
+Invoke predict method to classify after the model trained.
 
 
 
-### 3.加载官方模型文件，另存为java模型格式
+### 3.Saving official model in java
 ```java
 FastText fastText = FastText.loadFasttextBinModel("data/fasttext/wiki.zh.bin");
 fastText.saveModel("data/fasttext/wiki.model");
 ```
 
-### 4.分类预测
+### 4.Predict
 ```java
-//predict传入一个分词后的结果
+//predict the result of a word
 FastText fastText = FastText.loadCModel("data/fasttext/wiki.zh.bin");
 List<FloatStringPair> predict = fastText.predict(Arrays.asList("fastText在预测标签时使用了非线性激活函数".split(" ")), 5);
 ```
 
-### 5.Nearest Neighbor 近邻查询
+### 5.Nearest Neighbor Search
 ```java
 FastText fastText = FastText.loadCModel("data/fasttext/wiki.zh.bin");
 
 List<FloatStringPair> predict = fastText.nearestNeighbor("中国",5);
 ```
 
-### 6.Analogies 类比
-给定三个词语A、B、C，返回与(A - B + C)语义距离最近的词语及其相似度列表。
+### 6.Analogies
+By giving three words A, B and C, return the nearest words in terms of semantic distance and their similarity list, under the condition of (A - B + C).
 ```java
 FastText fastText = FastText.loadCModel("data/fasttext/wiki.zh.bin");
 
@@ -114,71 +116,71 @@ List<FloatStringPair> predict = fastText.analogies("国王","皇后","男",5);
 ```java
 
  /**
- * 在sup模型上，预测分类label
+ * classify the label by sup model
  */
  List<FloatStringPair> predict(Iterable<String> tokens, k: Int)
 
  /**
- * 近邻搜索(相似词搜索)
+ * nearest neighbor search
  * @param word 
- * @param k k个最相似的词
+ * @param k k most similar words
  */
  List<FloatStringPair> nearestNeighbor(String word, k: Int)
 
 /**
- * 类比搜索
+ * Analogies search
  * Query triplet (A - B + C)?
  */
  List<FloatStringPair> analogies(String A,String B,String C, k: Int)
 
  /**
- * 查询指定词的向量
+ * The vector of a certain word
  */
  Vector getWordVector(String word)
 
  /**
- * 获得短语的向量表示
+ * The vector of a certain phrase
  */
  Vector getSentenceVector(Iterable<String> tokens)
 
  /**
- * 保存词向量为文本格式
+ * Save the vector in text format
  */
  saveVectors(String fileName)
 
  /**
- * 保存模型为二进制格式
+ * Save the model in binary format
  */
  saveModel(String file)
 
  /**
- * 训练一个模型
+ * Model Training
  * @param File trainFile
  * @param model_name
- *  sg skipgram 词向量之skipgram算法
- *  cow cbow 词向量之cbow算法
- *  sup supervised 文本分类
- * @param args 训练参数 
+ *  sg skipgram Use skipgram algorithm
+ *  cow cbow Use cbow algorithm
+ *  sup supervised Text classification
+ * @param args Parameters 
  **/
  FastText FastText.train(File trainFile, ModelName model_name, TrainArgs args)
 
  /**
- * 加载有saveModel方法保存的模型
+ * Load the model saved by saveModel method
  * @param file 
- * @param mmap 是否采用mmap加载模型文件，可以在有限内存下，快速加载大模型文件
+ * @param mmap Load by mmap model to accelerate and save RAM
  */
  Fasttext.loadModel(String file,boolean mmap)
 
 
  /**
- * 加载facebook官方C程序保存的文件模型，支持bin和ftz模型
+ * Load model generated by C++ version(support bin & ftz).
  */
  Fasttext.loadFasttextBinModel(String binFile)
 ```
 
 
-## TrainArgs和相关参数
-java版本的参数和C++版本的保持一致，参考如下：
+## Parameters of TrainArgs
+The parameters is consistant with the C++ version :
 ```
 The following arguments for the dictionary are optional:
   -minCount           minimal number of word occurences [1]
@@ -210,8 +212,8 @@ The following arguments for quantization are optional:
   -dsub               size of each sub-vector [2]
 ```
 
-## 资源
-### 官方预训练模型
+## Resource
+### Official pre-trained model
 Recent state-of-the-art [English word vectors](https://fasttext.cc/docs/en/english-vectors.html).<br/>
 Word vectors for [157 languages trained on Wikipedia and Crawl](https://github.com/facebookresearch/fastText/blob/master/docs/crawl-vectors.md).<br/>
 Models for [language identification](https://fasttext.cc/docs/en/language-identification.html#content) and [various supervised tasks](https://fasttext.cc/docs/en/supervised-models.html#content).
