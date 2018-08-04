@@ -271,4 +271,4 @@ Please cite [1](#enriching-word-vectors-with-subword-information) if using this 
 
 ## License
 
-fastText is BSD-licensed. [Facebook持有专利](https://github.com/facebookresearch/fastText/blob/master/PATENTS)
+fastText is BSD-licensed. [facebook provide an additional patent grant.](https://github.com/facebookresearch/fastText/blob/master/PATENTS)

@@ -10,6 +10,10 @@ description = 'FastText的java版本实现，兼容facebook发布的原生预训
 version = "1.1.1-SNAPSHOT"
 group = "com.mayabot"
 
+repositories {
+    mavenCentral()
+}
+
 sourceSets {
     example {
         compileClasspath += sourceSets.main.runtimeClasspath
