@@ -34,7 +34,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.mayabot:fastText4j:1.1.0'
+    compile 'com.mayabot:fastText4j:1.1.1'
 }
 
 ```
@@ -54,7 +54,7 @@ dependencies {
   <!-- mynlp-fasttest @ https://mynlp.info/ -->
   <groupId>com.mayabot</groupId>
   <artifactId>fastText4j</artifactId>
-  <version>1.1.0</version>
+  <version>1.1.1</version>
 </dependency>
 ```
 
