@@ -25,13 +25,11 @@ import java.io.File
 //Process finished with exit code 0
 
 fun main(args: Array<String>) {
-    val file = File("data/fasttext/ag.train")
+    val file = File("src/example/resources/ag.train")
 
     val train = FastText.train(file, ModelName.sup)
 
     AgnewsTest.predict(train)
-
-    val x = intArrayOf(1)
 
 }
 
@@ -44,7 +42,7 @@ object AgnewsTest{
         var right = 0
         val splitter = Splitter.on(CharMatcher.whitespace())
 
-        for (line in Files.asCharSource(File("data/fasttext/ag.test"), Charsets.UTF_8).readLines()) {
+        for (line in Files.asCharSource(File("src/example/resources/ag.test"), Charsets.UTF_8).readLines()) {
 
             val i = line.indexOf(',')
             val label = line.substring(0, i).trim { it <= ' ' }
@@ -54,7 +52,7 @@ object AgnewsTest{
             val predict = fastText.predict(splitter.split(text), 3)
 
             if (!predict.isEmpty()) {
-                if (label == predict.get(0).second) {
+                if (label == predict[0].second) {
                     right++
                 }
             }

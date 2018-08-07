@@ -8,10 +8,15 @@ import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
 import java.io.File
 import java.io.IOException
+import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 import java.util.*
+import com.sun.tools.javac.tree.TreeInfo.args
+import com.google.common.primitives.UnsignedLong
+
+
 
 const val HASH_C = 116049371
 const val MAX_VOCAB_SIZE = 30000000
@@ -45,18 +50,18 @@ class Dictionary(private val args: Args) {
     var size: Int = 0
         private set
 
-    var wordList:MutableList<Entry> = ArrayList(50000 * 4)
+    var wordList: MutableList<Entry> = ArrayList(50000 * 4)
     private var word_hash_2_id: IntArray = IntArray(MAX_VOCAB_SIZE).apply {
         fill(-1)
     }
 
-    var nwords:Int = 0
-    var nlabels:Int = 0
-    var ntokens:Long = 0
+    var nwords: Int = 0
+    var nlabels: Int = 0
+    var ntokens: Long = 0
 
     var pruneidxSize = -1L
-    var pdiscard:FloatArray = FloatArray(0)
-    var pruneidx:IntIntMap = IntIntHashMap()
+    var pdiscard: FloatArray = FloatArray(0)
+    var pruneidx: IntIntMap = IntIntHashMap()
 
     /**
      * maxn length of char ngram
@@ -64,12 +69,13 @@ class Dictionary(private val args: Args) {
     val maxn = args.maxn
     val minn = args.minn
     val bucket = args.bucket
+    val bucketLong = args.bucket.toLong()
     val wordNgrams = args.wordNgrams
     val label = args.label
     val model = args.model
 
 
-    fun isPruned() = pruneidxSize >=0
+    fun isPruned() = pruneidxSize >= 0
 
 
     fun getType(id: Int): EntryType {
@@ -95,8 +101,8 @@ class Dictionary(private val args: Args) {
         } else word_hash_2_id[id]
     }
 
-    private fun getId(w: String, h:Long): Int {
-        val id = find(w,h)
+    private fun getId(w: String, h: Long): Int {
+        val id = find(w, h)
         return if (id == -1) {
             -1 //词不存在
         } else word_hash_2_id[id]
@@ -110,7 +116,7 @@ class Dictionary(private val args: Args) {
         val id = word_hash_2_id[h]
 
         if (id == -1) {
-            wordList.add(Entry(w,1,getType(w)))
+            wordList.add(Entry(w, 1, getType(w)))
             word_hash_2_id[h] = size++
         } else {
             wordList[id].count++
@@ -162,7 +168,6 @@ class Dictionary(private val args: Args) {
     }
 
 
-
     /**
      * 读取分析原始语料，语料单词直接空格
      *
@@ -186,8 +191,7 @@ class Dictionary(private val args: Args) {
         file.useLines { lines ->
             lines.filterNot { it.isNullOrBlank() || it.startsWith("#") }
                     .forEach { line ->
-                        splitter.split(line).forEach {
-                            token ->
+                        splitter.split(line).forEach { token ->
                             add(token)
                             if (ntokens % 1000000 == 0L && args.verbose > 1) {
                                 print("\rRead " + ntokens / 1000000 + "M words")
@@ -253,11 +257,14 @@ class Dictionary(private val args: Args) {
                 continue
             }
 
-            val ngram = StringBuilder()
+            var ngram: StringBuilder? = null
 
             var j = i
             var n = 1
             while (j < word_len && n <= maxn) {
+                if (ngram == null) {
+                    ngram = StringBuilder()
+                }
                 ngram.append(word[j++])
                 while (j < word.length && charMatches(word[j])) {
                     ngram.append(word[j++])
@@ -297,7 +304,7 @@ class Dictionary(private val args: Args) {
         val t = args.t
         for (i in 0 until size) {
             val f = wordList[i].count * 1.0f / ntokens
-            pdiscard[i] = (Math.sqrt(t / f) + t/ f).toFloat()
+            pdiscard[i] = (Math.sqrt(t / f) + t / f).toFloat()
         }
     }
 
@@ -307,8 +314,8 @@ class Dictionary(private val args: Args) {
                 .toMutableList()
         (wordList as java.util.ArrayList<Entry>).trimToSize()
 
-        size=0
-        nwords=0
+        size = 0
+        nwords = 0
         nlabels = 0
 
         word_hash_2_id.fill(-1)
@@ -318,7 +325,7 @@ class Dictionary(private val args: Args) {
             word_hash_2_id[h] = size++
             if (it.type == EntryType.word) {
                 nwords++
-            }else if (it.type == EntryType.label) {
+            } else if (it.type == EntryType.label) {
                 nlabels++
             }
         }
@@ -355,7 +362,6 @@ class Dictionary(private val args: Args) {
             val h = stringHash(token)
             val wid = getId(token, h)
             val type = if (wid < 0) getType(token) else getType(wid)
-
             ntokens++
 
             if (type == EntryType.word) {
@@ -371,18 +377,57 @@ class Dictionary(private val args: Args) {
         return ntokens
     }
 
+    companion object {
+         val coeff = UnsignedLong.valueOf(116049371L)
+         val U64_START = UnsignedLong.valueOf("18446744069414584320")
+    }
 
     private fun addWordNgrams(line: IntArrayList,
                               hashes: LongArrayList,
                               n: Int) {
-        for (i in 0 until hashes.size()) {
-            var h = hashes.get(i)
+        //read word^ hash 3675003649 int32 -619963647 uint64 18446744073089587969 wid 1
+//        for (i in 0 until hashes.size()) {
+//            var h = hashes.get(i)
+//            var j = i + 1
+//            while (j < hashes.size() && j < i + n) {
+//                h = (h * 116049371) + hashes.get(j)
+//                pushHash(line, (h % bucket).toInt())
+//                j++
+//            }
+//        }
+//        AddWordNgramsHelper.addWordNGrams(line,hashes,n,bucket.toLong(),{x->
+//            pushHash(h)
+//        })
+        val hashSize = hashes.size()
+
+        for (i in 0 until hashSize) {
+            var h = toUnsignedLong64(hashes.get(i))
             var j = i + 1
-            while (j < hashes.size() && j < i + n) {
-                h = h * 116049371 + hashes.get(j)
-                pushHash(line, (h % bucket).toInt())
+            while (j < hashSize && j < i + n) {
+                //val h2 = hashes.get(j)
+                val h2 = hashes.get(j).toInt().toLong()
+
+                if (h2 >= 0) {
+                    h = h.times(coeff).plus(UnsignedLong.valueOf(h2))
+                } else {
+                    h = h.times(coeff).minus(UnsignedLong.valueOf(-h2))
+                }
+                var id = h.mod(UnsignedLong.valueOf(bucketLong)).toInt()
+
+                pushHash(line ,id)
                 j++
             }
+        }
+    }
+
+    // from https://github.com/linkfluence/fastText4j/blob/b018438e84bebd20f89a701c35f022139418930c/src/main/java/fasttext/BaseDictionary.java
+
+
+    private fun toUnsignedLong64(l: Long): UnsignedLong {
+        return if (l > Integer.MAX_VALUE) {
+            U64_START.plus(UnsignedLong.valueOf(l))
+        } else {
+            UnsignedLong.valueOf(l)
         }
     }
 
@@ -482,20 +527,20 @@ class Dictionary(private val args: Args) {
         channel.writeLong(ntokens)
         channel.writeLong(pruneidxSize)
 
-        val buffer = ByteBuffer.allocate(1024*1024)
-        val em = buffer.capacity()*0.25f
+        val buffer = ByteBuffer.allocate(1024 * 1024)
+        val em = buffer.capacity() * 0.25f
         for (entry in wordList) {
             buffer.writeUTF(entry.word)
             buffer.putLong(entry.count)
             buffer.put(entry.type.value.toByte())
 
-           if(buffer.remaining() < em){
-               buffer.flip()
-               while (buffer.hasRemaining()) {
-                   channel.write(buffer)
-               }
-               buffer.clear()
-           }
+            if (buffer.remaining() < em) {
+                buffer.flip()
+                while (buffer.hasRemaining()) {
+                    channel.write(buffer)
+                }
+                buffer.clear()
+            }
         }
 
         buffer.flip()
@@ -503,9 +548,9 @@ class Dictionary(private val args: Args) {
             channel.write(buffer)
         }
 
-        val buffer2 = ByteBuffer.allocate(pruneidx.size()*4)
+        val buffer2 = ByteBuffer.allocate(pruneidx.size() * 4)
         pruneidx.forEach {
-            buffer2.putInt(it.key,it.value)
+            buffer2.putInt(it.key, it.value)
         }
         buffer2.flip()
         channel.write(buffer2)
@@ -514,7 +559,7 @@ class Dictionary(private val args: Args) {
 
 
     @Throws(IOException::class)
-    fun load(buffer: AutoDataInput) : Dictionary {
+    fun load(buffer: AutoDataInput): Dictionary {
         // wordList.clear();
         // word2int_.clear();
 
@@ -530,7 +575,7 @@ class Dictionary(private val args: Args) {
         //size 189997 18万的词汇
         //val byteArray = ByteArray(1024)
         for (i in 0 until size) {
-            val e = Entry(buffer.readUTF(),buffer.readLong(),EntryType.fromValue(buffer.readUnsignedByte().toInt()))
+            val e = Entry(buffer.readUTF(), buffer.readLong(), EntryType.fromValue(buffer.readUnsignedByte().toInt()))
             wordList.add(e)
             word_hash_2_id[find(e.word)] = i
         }
@@ -558,6 +603,7 @@ class Dictionary(private val args: Args) {
  */
 
 val Empty_IntArrayList = IntArrayList(0)
+
 data class Entry(
         val word: String,
         var count: Long,

@@ -4,6 +4,7 @@ import com.carrotsearch.hppc.IntArrayList
 import com.google.common.base.Charsets
 import com.google.common.base.Stopwatch
 import com.google.common.collect.ImmutableList
+import com.google.common.collect.Iterables
 import com.google.common.collect.Lists
 import com.google.common.collect.Sets
 import com.google.common.io.Files
@@ -27,7 +28,11 @@ const val FASTTEXT_VERSION = 12
 const val FASTTEXT_FILEFORMAT_MAGIC_INT32 = 793712314
 
 data class FloatIntPair(@JvmField var first: Float, @JvmField var second: Int)
-data class FloatStringPair(@JvmField var first: Float, @JvmField var second: String)
+data class FloatStringPair(@JvmField var first: Float, @JvmField var second: String){
+    override fun toString(): String {
+        return "[$second,$first]"
+    }
+}
 
 class FastText(internal val args: Args,
                internal val dict: Dictionary,
@@ -49,10 +54,11 @@ class FastText(internal val args: Args,
      * @return
      */
     fun predict(tokens: Iterable<String>, k: Int): List<FloatStringPair> {
+        val tokens2 = Iterables.concat(tokens, listOf(EOS))
         val words = IntArrayList()
         val labels = IntArrayList()
 
-        dict.getLine(tokens, words, labels)
+        dict.getLine(tokens2, words, labels)
 
         if (words.isEmpty) {
             return ImmutableList.of()
@@ -64,7 +70,7 @@ class FastText(internal val args: Args,
 
         model.predict(words, k, modelPredictions, hidden, output)
 
-        return modelPredictions.map { x -> FloatStringPair(x.first, dict.getLabel(x.second)) }
+        return modelPredictions.map { x -> FloatStringPair(exp(x.first), dict.getLabel(x.second)) }
     }
 
 
@@ -485,6 +491,8 @@ class Model(private val inputMatrix: FloatMatrix
     private var qinput = QMatrix()
     private var qoutput = QMatrix()
 
+    fun std_log(d: Float)=Math.log(d+1e-5)
+
 
     fun setQuantizePointer(qinput: QMatrix?, qoutput: QMatrix?, qout: Boolean) {
         qinput?.let {
@@ -518,10 +526,11 @@ class Model(private val inputMatrix: FloatMatrix
     fun findKBest(k: Int, heap: MutableList<FloatIntPair>, hidden: Vector, output: MutableVector) {
         computeOutputSoftmax(hidden, output)
         for (i in 0 until osz) {
-            if (heap.size == k && log(output.get(i)) < heap[heap.size - 1].first) {
+            val logoutputi = std_log(output[i]).toFloat()
+            if (heap.size == k && logoutputi < heap[heap.size - 1].first) {
                 continue
             }
-            heap.add(FloatIntPair(log(output.get(i)), i))
+            heap.add(FloatIntPair(logoutputi, i))
             Collections.sort(heap, comparePairs)
             if (heap.size > k) {
                 Collections.sort(heap, comparePairs)
@@ -554,8 +563,8 @@ class Model(private val inputMatrix: FloatMatrix
         f = 1.0f / (1 + exp(-f))
 
 
-        dfs(k, tree[node].left, score + log(1.0f - f), heap, hidden)
-        dfs(k, tree[node].right, score + log(f), heap, hidden)
+        dfs(k, tree[node].left, score + std_log(1.0f - f).toFloat(), heap, hidden)
+        dfs(k, tree[node].right, score + std_log(f).toFloat(), heap, hidden)
     }
 
 
