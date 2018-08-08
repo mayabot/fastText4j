@@ -88,6 +88,18 @@ publishing {
                 password "${maya_pub_pass}"
             }
         }
+        maven {
+            name 'OssPublic'
+            if (project.version.endsWith('-SNAPSHOT')) {
+                url "https://oss.sonatype.org/content/repositories/snapshots/"
+            } else {
+                url = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+            }
+            credentials{
+                username "${oss_user}"
+                password "${oss_password}"
+            }
+        }
     }
 
 
