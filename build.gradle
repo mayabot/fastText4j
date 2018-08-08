@@ -70,6 +70,30 @@ publishing {
             artifact javadocJar {
                 classifier "javadoc"
             }
+
+            pom {
+                name = 'fastText4j'
+                description = 'Java(kotlin) implementation of the Fasebook \'s FastText'
+                url = 'https://github.com/mayabot/fastText4j'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'jimichan'
+                        name = 'Jimi chan'
+                        email = 'jimichan@gmail.com'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git@github.com:mayabot/fastText4j.git'
+                    developerConnection = 'scm:git:git@github.com:mayabot/fastText4j.git'
+                    url = 'git@github.com:mayabot/fastText4j.git'
+                }
+            }
         }
 
     }
