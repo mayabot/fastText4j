@@ -27,31 +27,13 @@ Maven link in gradle  https://nexus.mayabot.com/content/groups/public/
 
 ### Gradle
 ```
-repositories {
-        maven {
-            url = "https://nexus.mayabot.com/content/groups/public/"
-        }
-}
-
-dependencies {
-    compile 'com.mayabot:fastText4j:1.1.1'
-}
+compile 'com.mayabot:fastText4j:1.1.1'
 
 ```
 
 ### Maven
 ```xml
-
-<repositories>
-    <repository>
-        <id>mayabot-public</id>
-        <url>http://nexus.mayabot.com/content/groups/public/</url>
-    </repository>
-</repositories>
-	
-	
 <dependency>
-  <!-- mynlp-fasttest @ https://mynlp.info/ -->
   <groupId>com.mayabot</groupId>
   <artifactId>fastText4j</artifactId>
   <version>1.1.1</version>
