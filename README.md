@@ -1,8 +1,9 @@
-## Introduction
+## Fasttext Introduction
 
- [Fasttext](https://github.com/facebookresearch/fastText/)is a C++ library for text representation and classification by facebookresearch. It implements text classification and word embedding learning.
+ [Fasttext](https://github.com/facebookresearch/fastText/) is a library for text representation and classification by facebookresearch. It implements text classification and word embedding learning.
+ 
 
-## mynlp-fasttext
+## FastText4j
 
   A java version implementation of fasttext in kotlin. Features:
 
