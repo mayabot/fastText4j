@@ -21,10 +21,6 @@ But it could be much optimised through mmap with limited RAM and time(around 3 s
 
 ## Installing
 
-It is released to mayabot's public pool only, not in maven repository yet.
-
-Maven link in gradle  https://nexus.mayabot.com/content/groups/public/
-
 ### Gradle
 ```
 compile 'com.mayabot:fastText4j:1.1.1'
