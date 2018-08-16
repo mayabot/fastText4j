@@ -716,12 +716,13 @@ class MutableFloatArrayMatrix(rows: Int, cols: Int) : BaseMatrix(rows, cols), Mu
         val byteBuffer = ByteBuffer.allocateDirect(cols * 4)
         val asFloatBuffer = byteBuffer.asFloatBuffer()
 
-        byteBuffer.position(0)
-        byteBuffer.limit(cols)
-
         for (row in 0 until rows) {
             asFloatBuffer.clear()
             asFloatBuffer.put(data, row * cols, cols)
+
+            byteBuffer.position(0)
+            byteBuffer.limit(cols*4)
+
             channel.write(byteBuffer)
         }
     }

@@ -29,6 +29,8 @@ fun main(args: Array<String>) {
 
     val train = FastText.train(file, ModelName.sup)
 
+    train.saveModel("data/fasttext/javamodel")
+
     AgnewsTest.predict(train)
 
 }
