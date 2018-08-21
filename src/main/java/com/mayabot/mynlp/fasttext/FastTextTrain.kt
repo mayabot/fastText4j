@@ -8,6 +8,7 @@ import com.google.common.collect.Lists
 import com.google.common.io.Files
 import com.google.common.primitives.Ints
 import com.google.common.util.concurrent.AtomicDouble
+import com.mayabot.mynlp.fasttext.matrix.*
 import fasttext.QMatrix
 import java.io.*
 import java.util.concurrent.atomic.AtomicLong

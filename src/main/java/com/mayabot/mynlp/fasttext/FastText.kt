@@ -9,14 +9,13 @@ import com.google.common.collect.Lists
 import com.google.common.collect.Sets
 import com.google.common.io.Files
 import com.google.common.primitives.Floats
+import com.mayabot.mynlp.fasttext.matrix.*
+import com.mayabot.mynlp.fasttext.matrix.Vector
 import fasttext.QMatrix
-import fasttext.pages
 import java.io.DataInputStream
 import java.io.File
 import java.io.IOException
-import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.channels.FileChannel
 import java.text.DecimalFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -380,42 +379,7 @@ class FastText(internal val args: Args,
             val dictionary = Dictionary(args).load(File(dir, "dict.bin").openAutoDataInput())
 
             fun loadMatrix(file: File): FloatMatrix {
-
-                return if (mmap) {
-                    file.inputStream().channel.use {
-                        val rows = it.readInt()
-                        val cols = it.readInt()
-
-                        //一个区域可以容纳多少行
-                        var areaRows = 0
-                        while (areaRows * cols < 268435456) {
-                            areaRows += 10
-                        }
-
-                        val fileSize = it.size()
-                        val arrayBytes = fileSize - 8
-                        val areaCount = pages(arrayBytes, 4 * areaRows * cols)
-                        val areaBytes = areaRows * cols * 4
-                        val lastBytes = arrayBytes % (areaRows * cols * 4)
-
-                        val list = ArrayList<ByteBuffer>()
-                        for (a in 0 until areaCount) {
-                            val len = if (a == areaCount - 1) lastBytes else areaBytes.toLong()
-                            list += it.map(FileChannel.MapMode.READ_ONLY, 8 + a.toLong() * areaBytes, len)
-                        }
-                        AreaByteBufferMatrix(rows, cols, list)
-                    }
-                } else {
-                    val dataInput = file.openAutoDataInput()
-                    val rows = dataInput.readInt()
-                    val cols = dataInput.readInt()
-                    val floatArray = FloatArray(rows * cols)
-                    for (i in 0 until rows * cols) {
-                        floatArray[i] = dataInput.readFloat()
-                    }
-                    FloatMatrix.readOnlyFloatArrayMatrix(rows, cols, floatArray)
-                }
-
+                return FloatMatrix.loadMatrix(file,mmap)
             }
 
             val quant = File(dir, "qinput.matrix").exists()

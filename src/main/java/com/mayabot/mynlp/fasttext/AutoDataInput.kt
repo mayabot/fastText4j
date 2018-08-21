@@ -1,5 +1,7 @@
 package com.mayabot.mynlp.fasttext
 
+import com.mayabot.mynlp.fasttext.matrix.FloatArrayMatrix
+import com.mayabot.mynlp.fasttext.matrix.FloatMatrix
 import java.io.*
 import java.nio.ByteOrder
 import java.util.*
