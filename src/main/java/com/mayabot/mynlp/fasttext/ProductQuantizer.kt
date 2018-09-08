@@ -3,10 +3,8 @@ package fasttext
 
 import com.google.common.base.Preconditions
 import com.mayabot.mynlp.fasttext.*
-import com.mayabot.mynlp.fasttext.matrix.FloatMatrix
-import com.mayabot.mynlp.fasttext.matrix.MutableFloatMatrix
-import com.mayabot.mynlp.fasttext.matrix.MutableVector
-import com.mayabot.mynlp.fasttext.matrix.Vector
+import com.mayabot.blas.*
+import com.mayabot.blas.Vector
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel

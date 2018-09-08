@@ -1,6 +1,7 @@
 package com.mayabot.mynlp.fasttext
 
 
+import com.mayabot.blas.AutoDataInput
 import java.io.IOException
 import java.nio.channels.FileChannel
 

@@ -8,10 +8,9 @@ import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
 import java.io.File
 import java.io.IOException
-import java.math.BigInteger
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.nio.channels.FileChannel
+import com.mayabot.blas.*
 import java.util.*
 import com.google.common.primitives.UnsignedLong
 
@@ -280,8 +279,8 @@ class Dictionary(private val args: Args) {
         }
     }
 
-    private fun pushHash(hashes: IntArrayList, id: Int) {
-        var id = id
+    private fun pushHash(hashes: IntArrayList, id_: Int) {
+        var id = id_
         if (pruneidxSize == 0L || id < 0) return
 
         if (pruneidxSize > 0) {

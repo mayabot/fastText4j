@@ -9,8 +9,8 @@ import com.google.common.collect.Lists
 import com.google.common.collect.Sets
 import com.google.common.io.Files
 import com.google.common.primitives.Floats
-import com.mayabot.mynlp.fasttext.matrix.*
-import com.mayabot.mynlp.fasttext.matrix.Vector
+import com.mayabot.blas.*
+import com.mayabot.blas.Vector
 import fasttext.QMatrix
 import java.io.DataInputStream
 import java.io.File
@@ -360,6 +360,9 @@ class FastText(internal val args: Args,
             return LoadFastTextFromClangModel.loadCModel(modelPath)
         }
 
+        private fun File.openAutoDataInput() = AutoDataInput.open(this)
+
+
         /**
          * 加载java程序保存的文件模型.
          * path应该是一个目录，下面保存各个细节的文件
@@ -569,6 +572,16 @@ class Model(private val inputMatrix: FloatMatrix
         }
         for (i in 0 until osz) {
             output[i] = output[i] / z
+        }
+    }
+
+    private fun matrixMulVector(matrix: QMatrix, v: Vector, target: MutableVector) {
+        checkArgument(matrix.m == target.length())
+        checkArgument(matrix.n == v.length())
+
+        val m_ = matrix.m
+        for (i in 0 until m_) {
+            target[i] = matrix.dotRow(v,i)
         }
     }
 
