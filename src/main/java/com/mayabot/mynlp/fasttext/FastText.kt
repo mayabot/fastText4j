@@ -15,6 +15,7 @@ import fasttext.QMatrix
 import java.io.DataInputStream
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.nio.ByteOrder
 import java.text.DecimalFormat
 import java.util.*
@@ -351,13 +352,35 @@ class FastText(internal val args: Args,
         /**
          * 加载facebook官方C程序保存的文件模型，支持bin和ftz模型
          *
+         * @param modelFilePath
+         * @throws IOException
+         */
+        @JvmStatic
+        @Throws(Exception::class)
+        fun loadFasttextBinModel(modelFilePath: String): FastText {
+            return LoadFastTextFromClangModel.loadCModel(modelFilePath)
+        }
+        /**
+         * 加载facebook官方C程序保存的文件模型，支持bin和ftz模型
+         *
          * @param modelPath
          * @throws IOException
          */
         @JvmStatic
         @Throws(Exception::class)
-        fun loadFasttextBinModel(modelPath: String): FastText {
-            return LoadFastTextFromClangModel.loadCModel(modelPath)
+        fun loadFasttextBinModel(modelFile: File): FastText {
+            return LoadFastTextFromClangModel.loadCModel(modelFile)
+        }
+        /**
+         * 加载facebook官方C程序保存的文件模型，支持bin和ftz模型
+         *
+         * @param modelPath
+         * @throws IOException
+         */
+        @JvmStatic
+        @Throws(Exception::class)
+        fun loadFasttextBinModel(modelStream: InputStream): FastText {
+            return LoadFastTextFromClangModel.loadCModel(modelStream)
         }
 
         private fun File.openAutoDataInput() = AutoDataInput.open(this)
@@ -736,20 +759,13 @@ object LoadFastTextFromClangModel {
 
     /**
      * Load binary model file. 这个二进制版本是C语言版本的模型
-     * @param modelPath
-     * @return
+     * @param input C语言版本的模型的InputStream
+     * @return FastTextModel
      * @throws Exception
      */
     @Throws(Exception::class)
-    fun loadCModel(modelPath: String): FastText {
-
-        val modeFile = File(modelPath)
-
-        if (!(modeFile.exists() && modeFile.isFile && modeFile.canRead())) {
-            throw IOException("Model file cannot be opened for loading!")
-        }
-
-        modeFile.inputStream().buffered(1024 * 1024).use {
+    fun loadCModel(input: InputStream): FastText {
+        input.buffered(1024*1024).use {
             val buffer = AutoDataInput(DataInputStream(it), ByteOrder.LITTLE_ENDIAN)
 
             //check model
@@ -824,4 +840,36 @@ object LoadFastTextFromClangModel {
         }
     }
 
+    /**
+     * Load binary model file. 这个二进制版本是C语言版本的模型
+     * @param modelPath
+     * @return FastTextModel
+     * @throws Exception
+     */
+    @Throws(Exception::class)
+    fun loadCModel(modelFile: File): FastText {
+
+        if (!(modelFile.exists() && modelFile.isFile && modelFile.canRead())) {
+            throw IOException("Model file cannot be opened for loading!")
+        }
+
+        return loadCModel(modelFile.inputStream())
+    }
+
+    /**
+     * Load binary model file. 这个二进制版本是C语言版本的模型
+     * @param modelPath
+     * @return FastTextModel
+     * @throws Exception
+     */
+    @Throws(Exception::class)
+    fun loadCModel(modelPath: String): FastText {
+        val modelFile = File(modelPath)
+
+        if (!(modelFile.exists() && modelFile.isFile && modelFile.canRead())) {
+            throw IOException("Model file cannot be opened for loading!")
+        }
+
+        return loadCModel(modelFile.inputStream())
+    }
 }
