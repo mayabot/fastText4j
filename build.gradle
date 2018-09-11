@@ -33,7 +33,7 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 
     compile group: 'com.carrotsearch', name: 'hppc', version: '0.7.3'
-    compile 'com.mayabot:maya-simple-blas:1.1.0'
+    compile 'com.mayabot:maya-simple-blas:1.1.1'
     compile group: 'com.google.guava', name: 'guava', version: "19.0"
 
     testCompile 'junit:junit:4.12'
@@ -41,7 +41,7 @@ dependencies {
 
 
 task sourceJar(type: Jar) {
-    from sourceSets.main.allJava
+    from sourceSets.main.allSource
 }
 
 task javadocJar(type: Jar, dependsOn: javadoc) {
