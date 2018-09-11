@@ -32,8 +32,6 @@ class Args {
     var verbose = 2
     var lr = 0.05
 
-    var qout: Boolean = false
-
     @Throws(IOException::class)
     fun save(ofs: FileChannel) {
 
@@ -130,12 +128,12 @@ class TrainArgs {
     /**
      * size of word vectors [100]
      */
-     var dim: Int? = null
+    var dim: Int? = null
 
     /**
      * size of the context window [5]
      */
-     var ws: Int? = null
+    var ws: Int? = null
 
     /**
      * number of epochs [5]
@@ -162,50 +160,6 @@ class TrainArgs {
      */
     var pretrainedVectors: String = ""
 
-    fun setLr(lr: Double?): TrainArgs {
-        this.lr = lr
-        return this
-    }
-
-    fun setLrUpdateRate(lrUpdateRate: Int?): TrainArgs {
-        this.lrUpdateRate = lrUpdateRate
-        return this
-    }
-
-    fun setDim(dim: Int?): TrainArgs {
-        this.dim = dim
-        return this
-    }
-
-    fun setWs(ws: Int?): TrainArgs {
-        this.ws = ws
-        return this
-    }
-
-    fun setEpoch(epoch: Int?): TrainArgs {
-        this.epoch = epoch
-        return this
-    }
-
-    fun setNeg(neg: Int?): TrainArgs {
-        this.neg = neg
-        return this
-    }
-
-    fun setLoss(loss: LossName): TrainArgs {
-        this.loss = loss
-        return this
-    }
-
-    fun setThread(thread: Int?): TrainArgs {
-        this.thread = thread
-        return this
-    }
-
-    fun setPretrainedVectors(pretrainedVectors: String): TrainArgs {
-        this.pretrainedVectors = pretrainedVectors
-        return this
-    }
 }
 
 
@@ -230,7 +184,7 @@ enum class LossName private constructor(var value: Int) {
 }
 
 
-enum class ModelName private constructor(var value: Int) {
+enum class ModelName constructor(var value: Int) {
 
     /**
      * CBOW

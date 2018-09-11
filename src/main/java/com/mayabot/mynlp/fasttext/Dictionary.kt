@@ -173,7 +173,7 @@ class Dictionary(private val args: Args) {
      * @throws Exception
      */
     @Throws(Exception::class)
-    fun buildFromFile(file: File) {
+    fun buildFromFile(file: TrainExampleSource) {
 
         val mmm = 0.75 * MAX_VOCAB_SIZE
 
@@ -186,10 +186,10 @@ class Dictionary(private val args: Args) {
         val splitter = Splitter.on(CharMatcher.whitespace())
                 .omitEmptyStrings().trimResults()
 
-        file.useLines { lines ->
-            lines.filterNot { it.isNullOrBlank() || it.startsWith("#") }
-                    .forEach { line ->
-                        splitter.split(line).forEach { token ->
+        val lines = file.iteratorAll()
+        lines.use {
+            it.forEach { line->
+                        line.forEach { token->
                             add(token)
                             if (ntokens % 1000000 == 0L && args.verbose > 1) {
                                 print("\rRead " + ntokens / 1000000 + "M words")
@@ -201,8 +201,7 @@ class Dictionary(private val args: Args) {
                             }
                         }
                         add(EOS)
-                    }
-
+           }
             threshold(args.minCount.toLong(), args.minCountLabel.toLong())
 
             initTableDiscard()
@@ -219,6 +218,27 @@ class Dictionary(private val args: Args) {
                 System.exit(1)
             }
         }
+
+//
+//        file.useLines { lines ->
+//            lines.filterNot { it.isNullOrBlank() || it.startsWith("#") }
+//                    .forEach { line ->
+//                        splitter.split(line).forEach { token ->
+//                            add(token)
+//                            if (ntokens % 1000000 == 0L && args.verbose > 1) {
+//                                print("\rRead " + ntokens / 1000000 + "M words")
+//                            }
+//
+//                            if (size > mmm) {
+//                                minThreshold++
+//                                threshold(minThreshold, minThreshold)
+//                            }
+//                        }
+//                        add(EOS)
+//                    }
+//
+//
+//        }
 
 
     }

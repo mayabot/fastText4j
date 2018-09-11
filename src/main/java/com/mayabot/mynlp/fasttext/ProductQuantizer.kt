@@ -1,4 +1,4 @@
-package fasttext
+package com.mayabot.mynlp.fasttext
 
 
 import com.google.common.base.Preconditions
@@ -82,23 +82,6 @@ class QMatrix(val m: Int = 0, val n: Int = 0, val dsub: Int = 2, var qnorm: Bool
         npq_.train(norms)
         npq_.compute_codes(norms, norm_codes_)
     }
-
-    //    public void save(CLangDataOutputStream out) throws IOException{
-    //        out.writeBoolean(qnorm_);
-    //        out.writeLong(m_);
-    //        out.writeLong(n_);
-    //        out.writeInt(codesize_);
-    //
-    //        out.writeShortArray(codes_);
-    //
-    //        pq_.save(out);
-    //        if (qnorm_) {
-    //            out.writeShortArray(norm_codes_);
-    //
-    //            npq_.save(out);
-    //        }
-    //
-    //    }
 
     fun save(channel: FileChannel) {
         with(channel) {
@@ -214,7 +197,11 @@ class ProductQuantizer(val dim: Int, val dsub: Int) {
         val xsliceData = xslice.data
 
 
+        print("Product Quantize 0%")
         for (m in 0 until nsubq_) {
+            print("\r")
+            print("pq ${((m+1)*100.0/nsubq_).toInt()}%")
+
             if (m == nsubq_ - 1) {
                 d = lastdsub_
             }
@@ -233,6 +220,7 @@ class ProductQuantizer(val dim: Int, val dsub: Int) {
 
             centroidTable[m].kmeans(xslice)
         }
+        print("\n")
     }
 
     /**

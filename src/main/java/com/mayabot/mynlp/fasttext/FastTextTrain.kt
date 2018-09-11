@@ -9,7 +9,6 @@ import com.google.common.io.Files
 import com.google.common.primitives.Ints
 import com.google.common.util.concurrent.AtomicDouble
 import com.mayabot.blas.*
-import fasttext.QMatrix
 import java.io.*
 import java.util.concurrent.atomic.AtomicLong
 
@@ -30,56 +29,17 @@ class FastTextTrain {
 
     private var startTime = 0L
 
-    var file: File? = null
+    var source: TrainExampleSource? = null
     var input: MutableFloatMatrix? = null
     var output: MutableFloatMatrix? = null
 
-    /**
-     * 分类模型量化
-     *
-     * @param out
-     */
-    fun quantize(fastText: FastText,qout:Boolean=false,input:String,
-                 cout:Int=0,dsub:Int=2,retrain:Boolean=false,qnorm:Boolean=false) {
 
-        if (fastText.quant) {
-            println("该模型已经被量化过")
-            return
-        }
-
-        dict = fastText.dict
-        args = fastText.args
-
-        val qinput = QMatrix(fastText.input.rows(),fastText.input.cols(), dsub, qnorm)
-        qinput.quantize(fastText.input as MutableFloatMatrix)
-
-        fastText.quant = true
-
-
-//        if (qargs.cutoff > 0 && qargs.cutoff < input_->size(0)) {
-//            auto idx = selectEmbeddings(qargs.cutoff);
-//            dict_->prune(idx);
-//            std::shared_ptr<Matrix> ninput =
-//            std::make_shared<Matrix>(idx.size(), args_->dim);
-//            for (auto i = 0; i < idx.size(); i++) {
-//            for (auto j = 0; j < args_->dim; j++) {
-//            ninput->at(i, j) = input_->at(idx[i], j);
-//        }
-//        }
-//            input_ = ninput;
-//            if (qargs.retrain) {
-//                args_->epoch = qargs.epoch;
-//                args_->lr = qargs.lr;
-//                args_->thread = qargs.thread;
-//                args_->verbose = qargs.verbose;
-//                startThreads();
-//            }
-//        }
-
-    }
 
     fun train(file: File,modelName: ModelName, trainArgs: TrainArgs): FastText {
-        println("Train file ${file.absolutePath}")
+        return this.train(FileTrainExampleSource(whitespaceSplitter, file), modelName, trainArgs)
+    }
+
+    fun train(file: TrainExampleSource,modelName: ModelName, trainArgs: TrainArgs): FastText {
         args = Args().apply {
             model = modelName
             if (modelName == ModelName.sup) {
@@ -139,13 +99,13 @@ class FastTextTrain {
 
         output.fill(0f)
 
-        this.file = file
+        this.source = file
         this.input = input
         this.output = output
 
         startThreads()
 
-        val fastText = FastText(args,dict, input, output, Model(input, output, args, 0).apply {
+        val fastText = FastText(args,dict,  Model(input, output, args, 0).apply {
             if (args.model == ModelName.sup) {
                 this.setTargetCounts(dict.getCounts(EntryType.label))
             } else {
@@ -165,9 +125,11 @@ class FastTextTrain {
         tokenCount = AtomicLong(0)
         loss = AtomicDouble(-1.0)
 
+        val sourceParts = source!!.split(args.thread)
+
         val threads = Lists.newArrayList<Thread>()
         for (i in 0 until args.thread) {
-            threads.add(Thread(TrainThread(i)))
+            threads.add(Thread(TrainThread(i,sourceParts[i])))
         }
 
         for (i in 0 until args.thread) {
@@ -196,13 +158,19 @@ class FastTextTrain {
             printInfo(1.0f, loss)
             println()
         }
+
+        source?.close()
     }
 
-    internal inner class TrainThread(private val threadId: Int) : Runnable {
+    internal inner class TrainThread(
+            private val threadId: Int,
+            private val parts: TrainExampleSource
+
+    ) : Runnable {
 
         override fun run() {
             try {
-                LoopReader((threadId * file!!.length() / args.thread).toInt(), file!!).use { loopReader ->
+                LoopReader(parts).use { loopReader ->
 
                     val model = TrainModel(input!!, output!!, args, threadId)
                     val rng = model.rng
@@ -452,7 +420,7 @@ class TrainModel(
     private val grad = Vector.floatArrayVector(args_.dim)
 
     private val hsz: Int = args_.dim // dim
-    //    private val isz: Int = inputMatrix.rows()// input vocabSize
+    //    private val isz: Int = input.rows()// input vocabSize
     private var loss = 0f
     private var nexamples = 1L
 
@@ -470,89 +438,9 @@ class TrainModel(
     }
 
 
-    private fun initTableNegatives(counts: LongArray) {
-        val negatives_ = IntArrayList(counts.size)
-
-        var z = counts.sqrtSum()
-
-
-        val size = counts.size
-
-        val xxn = NEGATIVE_TABLE_SIZE / z
-        for (i in 0 until size) {
-            val c = sqrt(counts[i])
-            var j = 0
-            while (j < c * xxn) {
-                negatives_.add(i)
-                j++
-            }
-        }
-        negatives = negatives_.toArray()
-        shuffle(negatives, rng)
-    }
-
-    private fun buildTree(counts: LongArray) {
-        val pathsLocal = ArrayList<IntArray>(osz)
-        val codesLocal = ArrayList<BooleanArray>(osz)
-        val treeLocal = ArrayList<Node>(2 * osz - 1)
-
-        for (i in 0 until 2 * osz - 1) {
-            treeLocal.add(Node().apply {
-                this.parent = -1
-                this.left = -1
-                this.right = -1
-                this.count = 1000000000000000L// 1e15f;
-                this.binary = false
-            })
-        }
-
-        for (i in 0 until osz) {
-            treeLocal[i].count = counts[i]
-        }
-
-        var leaf = osz - 1
-        var node = osz
-        for (i in osz until 2 * osz - 1) {
-            val mini = IntArray(2)
-            for (j in 0..1) {
-                if (leaf >= 0 && treeLocal[leaf].count < treeLocal[node].count) {
-                    mini[j] = leaf--
-                } else {
-                    mini[j] = node++
-                }
-            }
-            treeLocal[i].apply {
-                this.left = mini[0]
-                this.right = mini[1]
-                this.count = treeLocal[mini[0]].count + treeLocal[mini[1]].count
-            }
-            treeLocal[mini[0]].parent = i
-            treeLocal[mini[1]].parent = i
-            treeLocal[mini[1]].binary = true
-        }
-
-        for (i in 0 until osz) {
-            val path = ArrayList<Int>()
-            val code = ArrayList<Boolean>()
-
-            var j = i
-            while (treeLocal[j].parent != -1) {
-                path.add(treeLocal[j].parent - osz)
-                code.add(treeLocal[j].binary)
-                j = treeLocal[j].parent
-            }
-            pathsLocal.add(path.toIntArray())
-            codesLocal.add(code.toBooleanArray())
-        }
-
-        this.paths = pathsLocal
-        this.codes = codesLocal
-        this.tree = treeLocal
-    }
-
     fun update(input: IntArrayList, target: Int, lr: Float) {
         checkArgument(target >= 0)
-        checkArgument(target < osz)
+        checkArgument(target < outputMatrixSize)
         if (input.size() == 0) {
             return
         }
@@ -645,7 +533,7 @@ class TrainModel(
     private fun softmax(target: Int, lr: Float): Float {
         grad.zero()
         computeOutputSoftmax()
-        for (i in 0 until osz) {
+        for (i in 0 until outputMatrixSize) {
             val label = if (i == target) 1.0f else 0.0f
             val alpha = lr * (label - output[i])
             grad += alpha to outputMatrix[i]
@@ -659,20 +547,19 @@ class TrainModel(
         matrixMulVector(outputMatrix, hidden, output)
         var max = output[0]
         var z = 0.0f
-        for (i in 1 until osz) {
+        for (i in 1 until outputMatrixSize) {
             max = Math.max(output[i], max)
         }
-        for (i in 0 until osz) {
+        for (i in 0 until outputMatrixSize) {
             output[i] = Math.exp((output[i] - max).toDouble()).toFloat()
             z += output[i]
         }
-        for (i in 0 until osz) {
+        for (i in 0 until outputMatrixSize) {
             output[i] = output[i] / z
         }
     }
 
 }
-
 
 class Node {
     @JvmField
@@ -687,46 +574,44 @@ class Node {
     var binary: Boolean = false
 }
 
-
 class LoopReader @Throws(IOException::class)
-constructor(internal var pos: Int, private val file: File) : AutoCloseable {
+constructor(private val parts: TrainExampleSource) : AutoCloseable {
 
-    private var reader: BufferedReader? = null
+    var reader: ExampleIterator
 
     internal var splitter = Splitter.on(CharMatcher.whitespace()).omitEmptyStrings().trimResults()
 
     init {
-        val `in` = FileInputStream(file)
-        `in`.skip(pos.toLong())
-        reader = BufferedReader(InputStreamReader(`in`, kotlin.text.Charsets.UTF_8))
+        reader = parts.iteratorAll()
     }
 
     @Throws(IOException::class)
     fun readLineTokens(): List<String> {
         var line = loopLine()
-        while (line!!.isEmpty()) { //skip empty line
+        //skip empty line
+        //此处容易导致死循环
+        while (line.isEmpty()) {
             line = loopLine()
         }
+
         return line2Tokens(line)
     }
 
     @Throws(IOException::class)
-    private fun loopLine(): String? {
-        var line: String? = reader!!.readLine()
-        if (line == null) {
-            reader!!.close()
-            val `in` = FileInputStream(file)
-            reader = BufferedReader(InputStreamReader(`in`, kotlin.text.Charsets.UTF_8))
-            line = reader!!.readLine()
+    private fun loopLine(): List<String> {
+        if (reader.hasNext()) {
+            return reader.next()
+        }else{
+            reader.close()
+            reader = parts.iteratorAll()
+            return Lists.newArrayList()
         }
-        return line
     }
 
-    private fun line2Tokens(line: String): List<String> {
-        val list = Lists.newArrayList(splitter.split(line))
+    private fun line2Tokens(tokens: List<String>): List<String> {
+        val list = Lists.newArrayList(tokens)
         list.add(EOS)
         return list
-        //        return splitter.splitToList(line);
     }
 
     @Throws(Exception::class)
@@ -736,13 +621,4 @@ constructor(internal var pos: Int, private val file: File) : AutoCloseable {
         }
     }
 
-    companion object {
-        @JvmStatic
-        fun main(args: Array<String>) {
-            val thread = 8
-            val progress = 0.1f
-            val eta = (20 / progress * (1 - progress)).toInt().toLong()
-            println(eta)
-        }
-    }
 }

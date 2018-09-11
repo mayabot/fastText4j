@@ -15,17 +15,6 @@ fun FileChannel.writeInt(value: Int) {
 fun FileChannel.writeLong(value: Long) {
     this.write(ByteBuffer.allocate(8).putLong(value).apply { flip() })
 }
-fun FileChannel.writeFloat(value: Float) {
-    this.write(ByteBuffer.allocate(4).putFloat(value).apply { flip() })
-}
-
-fun FileChannel.readInt():Int {
-    val b = ByteBuffer.allocate(4)
-    this.read(b)
-    b.flip()
-    return b.int
-}
-
 
 fun FileChannel.writeShortArray(value: ShortArray) {
     val b = ByteBuffer.allocate(value.size*2)

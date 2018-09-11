@@ -11,16 +11,12 @@ import com.google.common.io.Files
 import com.google.common.primitives.Floats
 import com.mayabot.blas.*
 import com.mayabot.blas.Vector
-import fasttext.QMatrix
-import java.io.DataInputStream
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
-import java.nio.ByteOrder
 import java.text.DecimalFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-import kotlin.collections.ArrayList
 import kotlin.math.exp
 import kotlin.system.exitProcess
 
@@ -36,15 +32,19 @@ data class FloatStringPair(@JvmField var first: Float, @JvmField var second: Str
 
 class FastText(internal val args: Args,
                internal val dict: Dictionary,
-               internal val input: FloatMatrix,
-               internal val output: FloatMatrix,
-               internal val model: Model,
-               /**
-                * 是否量化
-                */
-               internal var quant: Boolean = false,
-               internal val qinput: QMatrix = QMatrix(),
-               internal val qoutput: QMatrix? = null) {
+               internal val model: Model
+) {
+
+    /**
+     * 是否量化. 指的是隐藏层或者LEFT或者是词向量是否向量化
+     */
+    val quant = model.quant
+
+    val input = model.input
+    val output = model.output
+
+    lateinit var wordVectors: FloatMatrix
+
 
     /**
      * 预测分类标签
@@ -105,7 +105,6 @@ class FastText(internal val args: Args,
         return result
     }
 
-    lateinit var wordVectors: FloatMatrix
 
     /**
      * NearestNeighbor
@@ -114,7 +113,7 @@ class FastText(internal val args: Args,
         if (!this::wordVectors.isInitialized) {
             val stopwatch = Stopwatch.createStarted()
             wordVectors = FloatMatrix.floatArrayMatrix(dict.nwords,args.dim).apply {
-                precomputeWordVectors(this)
+                preComputeWordVectors(this)
             }
             stopwatch.stop()
             println("Init wordVectors martix use time ${stopwatch.elapsed(TimeUnit.MILLISECONDS)} ms")
@@ -136,7 +135,7 @@ class FastText(internal val args: Args,
         if (!this::wordVectors.isInitialized) {
             val stopwatch = Stopwatch.createStarted()
             wordVectors = FloatMatrix.floatArrayMatrix(dict.nwords,args.dim).apply {
-                precomputeWordVectors(this)
+                preComputeWordVectors(this)
             }
             stopwatch.stop()
             println("Init wordVectors martix use time ${stopwatch.elapsed(TimeUnit.MILLISECONDS)} ms")
@@ -166,7 +165,7 @@ class FastText(internal val args: Args,
      * 最后距离结构都是0 ~ 1 的数字
      * @param wordVectors
      */
-    fun precomputeWordVectors(wordVectors: MutableFloatMatrix) {
+    private fun preComputeWordVectors(wordVectors: MutableFloatMatrix) {
         val vec = Vector.floatArrayVector(args.dim)
         wordVectors.fill(0f)
         for (i in 0 until dict.nwords()) {
@@ -175,12 +174,11 @@ class FastText(internal val args: Args,
             val norm = vec.norm2()
             if (norm > 0) {
                 wordVectors[i] += 1.0f/norm to vec
-                //wordVectors.addRow(vec, i, 1.0f / norm)
             }
         }
     }
 
-        /**
+    /**
      * 把词向量填充到一个Vector对象里面去
      *
      * @param vec
@@ -209,6 +207,10 @@ class FastText(internal val args: Args,
     }
 
 
+    /**
+     * 计算句子向量
+     * @return 句子向量
+     */
     fun getSentenceVector(tokens: Iterable<String>): Vector {
         val svec = MutableByteBufferVector(args.dim)
         getSentenceVector(svec, tokens)
@@ -256,7 +258,7 @@ class FastText(internal val args: Args,
 
     private fun addInputVector(vec: MutableVector, ind: Int) {
         if (quant) {
-            qinput.addToVector(vec, ind)
+            model.qinput.addToVector(vec, ind)
         } else {
             vec += input[ind]
         }
@@ -264,7 +266,7 @@ class FastText(internal val args: Args,
 
 
     /**
-     * 保存词到向量文本
+     * 把词向量另存为文本格式
      *
      * @param file
      */
@@ -302,6 +304,9 @@ class FastText(internal val args: Args,
         }
     }
 
+    /**
+     * 保存为自有的文件格式(多文件）
+     */
     @Throws(Exception::class)
     fun saveModel(path: String) {
         var path = File(path)
@@ -323,25 +328,25 @@ class FastText(internal val args: Args,
         if (!quant) {
             //input float matrix
             File(path, "input.matrix").outputStream().channel.use {
-                it.writeInt(input.rows())
-                it.writeInt(input.cols())
-                input.write(it)
+                it.writeInt(model.input.rows())
+                it.writeInt(model.input.cols())
+                model.input.write(it)
             }
         } else {
             File(path, "qinput.matrix").outputStream().channel.use {
-                qinput.save(it)
+                model.qinput.save(it)
             }
         }
 
-        if (quant && args.qout) {
+        if (quant && model.quantOut) {
             File(path, "qoutput.matrix").outputStream().channel.use {
-                qoutput!!.save(it)
+                model.qoutput!!.save(it)
             }
         } else {
             File(path, "output.matrix").outputStream().channel.use {
-                it.writeInt(output.rows())
-                it.writeInt(output.cols())
-                output.write(it)
+                it.writeInt(model.output.rows())
+                it.writeInt(model.output.cols())
+                model.output.write(it)
             }
         }
     }
@@ -429,18 +434,17 @@ class FastText(internal val args: Args,
             var output: FloatMatrix = FloatMatrix.floatArrayMatrix(0, 0)
             var qoutput: QMatrix? = null
 
-            args.qout = File(dir, "qoutput.matrix").exists()
-            if (quant && args.qout) {
+            val qout = File(dir, "qoutput.matrix").exists()
+            if (quant && qout) {
                 qoutput = QMatrix.load(File(dir, "qoutput.matrix").openAutoDataInput())
             } else {
                 output = loadMatrix(File(dir, "output.matrix"))
             }
 
             val model = Model(input, output, args, 0)
-            model.quant = quantInput
-
-            model.setQuantizePointer(qinput, qoutput, args.qout)
-
+            if(quantInput){
+                model.setQuantizePointer(qinput, qoutput)
+            }
 
             if (args.model == ModelName.sup) {
                 model.setTargetCounts(dictionary.getCounts(EntryType.label))
@@ -449,11 +453,7 @@ class FastText(internal val args: Args,
             }
 
 
-            return if (model.quant) {
-                FastText(args, dictionary, input, output, model, true, qinput!!, qoutput)
-            } else {
-                FastText(args, dictionary, input, output, model)
-            }
+            return FastText(args, dictionary,  model)
         }
 
 
@@ -464,35 +464,83 @@ class FastText(internal val args: Args,
         fun train(trainFile: File, model_name: ModelName = ModelName.sup, args: TrainArgs = TrainArgs()): FastText {
             return FastTextTrain().train(trainFile, model_name, args)
         }
+
+
+
+        /**
+         * 分类模型量化
+         *
+         * @param out
+         */
+        fun quantize(fastText: FastText,
+                     dsub:Int=2,
+                     qnorm:Boolean=false):FastText {
+
+            if (fastText.quant) {
+                println("该模型已经被量化过")
+                return fastText
+            }
+
+            if(fastText.args.model != ModelName.sup){
+                throw RuntimeException("Only for sup model")
+            }
+
+            val qMatrix = QMatrix(fastText.input.rows(),fastText.input.cols(), dsub, qnorm)
+            val inputMatrix = fastText.input.toMutableFloatMatrix()
+            qMatrix.quantize(inputMatrix)
+
+
+            val qModel = Model(FloatMatrix.floatArrayMatrix(0, 0),fastText.output,fastText.args,0)
+
+            qModel.setQuantizePointer(qMatrix,null)
+
+
+            val QFastText = FastText(fastText.args,fastText.dict,qModel)
+
+            return QFastText
+        }
     }
 }
 
-class Model(private val inputMatrix: FloatMatrix
-            , private val outputMatrix: FloatMatrix,
+class Model(val input: FloatMatrix
+            , val output: FloatMatrix,
             args_: Args,
-            seed: Int) : BaseModel(args_, seed, outputMatrix.rows()) {
+            seed: Int) : BaseModel(args_, seed, output.rows()) {
 
+    /**
+     * 是否乘积量化模型(input)
+     */
     var quant: Boolean = false
 
+    /**
+     * Right 是否量化
+     */
+    var quantOut = false
+
+    var qinput = QMatrix()
+    var qoutput = QMatrix()
+
+    /**
+     * hidden size 也就是向量的维度
+     */
     private val hsz: Int = args_.dim // dim
 
     private val comparePairs = { o1: FloatIntPair, o2: FloatIntPair -> Floats.compare(o2.first, o1.first) }
 
-    private var qinput = QMatrix()
-    private var qoutput = QMatrix()
-
     fun std_log(d: Float)=Math.log(d+1e-5)
 
 
-    fun setQuantizePointer(qinput: QMatrix?, qoutput: QMatrix?, qout: Boolean) {
+    fun setQuantizePointer(qinput: QMatrix?, qoutput: QMatrix?) {
+
         qinput?.let {
+            quant = true
             this.qinput = qinput
         }
+        // qoutput 不为null就是out向量化
         qoutput?.let {
+            quantOut = true
             this.qoutput = it
-            if (qout) {
-                this.osz = qoutput.m
-            }
+            this.outputMatrixSize = qoutput.m
         }
     }
 
@@ -501,12 +549,10 @@ class Model(private val inputMatrix: FloatMatrix
                 hidden: MutableVector,
                 output: MutableVector) {
         checkArgument(k > 0)
-        //		if (heap instanceof ArrayList) {
-        //			((ArrayList<FloatIntPair>) heap).ensureCapacity(k + 1);
-        //		}
+
         computeHidden(input, hidden)
         if (args_.loss == LossName.hs) {
-            dfs(k, 2 * osz - 2, 0.0f, heap, hidden)
+            dfs(k, 2 * outputMatrixSize - 2, 0.0f, heap, hidden)
         } else {
             findKBest(k, heap, hidden, output)
         }
@@ -515,7 +561,7 @@ class Model(private val inputMatrix: FloatMatrix
 
     fun findKBest(k: Int, heap: MutableList<FloatIntPair>, hidden: Vector, output: MutableVector) {
         computeOutputSoftmax(hidden, output)
-        for (i in 0 until osz) {
+        for (i in 0 until outputMatrixSize) {
             val logoutputi = std_log(output[i]).toFloat()
             if (heap.size == k && logoutputi < heap[heap.size - 1].first) {
                 continue
@@ -544,11 +590,11 @@ class Model(private val inputMatrix: FloatMatrix
             return
         }
 
-//        val f = sigmoid(outputMatrix.dotRow(hidden, node - osz))
-        var f = if (quant && args_.qout) {
-            qoutput.dotRow(hidden, node - osz)
+//        val f = sigmoid(output.dotRow(hidden, node - outputMatrixSize))
+        var f = if (quant && quantOut) {
+            qoutput.dotRow(hidden, node - outputMatrixSize)
         } else {
-            outputMatrix[node - osz] * hidden
+            output[node - outputMatrixSize] * hidden
         }
         f = 1.0f / (1 + exp(-f))
 
@@ -570,7 +616,7 @@ class Model(private val inputMatrix: FloatMatrix
             if (quant) {
                 qinput.addToVector(hidden, it)
             } else {
-                hidden += inputMatrix[it]
+                hidden += this.input[it]
             }
             i++
         }
@@ -578,22 +624,22 @@ class Model(private val inputMatrix: FloatMatrix
     }
 
     private fun computeOutputSoftmax(hidden: Vector, output: MutableVector) {
-        if (quant && args_.qout) {
+        if (quant && quantOut) {
             matrixMulVector(qoutput, hidden, output)
         } else {
-            matrixMulVector(outputMatrix, hidden, output)
+            matrixMulVector(this.output, hidden, output)
         }
 
         var max = output[0]
         var z = 0.0f
-        for (i in 1 until osz) {
+        for (i in 1 until outputMatrixSize) {
             max = Math.max(output.get(i), max)
         }
-        for (i in 0 until osz) {
+        for (i in 0 until outputMatrixSize) {
             output[i] = Math.exp((output[i] - max).toDouble()).toFloat()
             z += output[i]
         }
-        for (i in 0 until osz) {
+        for (i in 0 until outputMatrixSize) {
             output[i] = output[i] / z
         }
     }
@@ -610,266 +656,3 @@ class Model(private val inputMatrix: FloatMatrix
 
 }
 
-/**
- * 训练模型和计算模型都需要一个setTargetCounts方法。构建negative sampling或者hierarchical softmax
- */
-open class BaseModel(@JvmField val args_: Args, seed: Int, @JvmField var osz: Int) {
-    // used for negative sampling:
-    @JvmField
-    protected var negatives: IntArray = IntArray(0)
-    @JvmField
-    protected var negpos: Int = 0
-
-    // used for hierarchical softmax:
-    @JvmField
-    protected var paths: MutableList<IntArray> = ArrayList()
-    @JvmField
-    protected var codes: MutableList<BooleanArray> = ArrayList()
-    @JvmField
-    protected var tree: MutableList<Node> = ArrayList()
-
-
-    @Transient
-    @JvmField
-    val rng: Random = Random(seed.toLong())
-
-    fun setTargetCounts(counts: LongArray) {
-        checkArgument(counts.size == osz)
-        if (args_.loss == LossName.ns) {
-            initTableNegatives(counts)
-        } else if (args_.loss == LossName.hs) {
-            buildTree(counts)
-        }
-    }
-
-    private fun initTableNegatives(counts: LongArray) {
-        val negatives_ = IntArrayList(counts.size)
-
-        var z = counts.map { sqrt(it) }.sum()
-        val size = counts.size
-
-        val xxn = NEGATIVE_TABLE_SIZE / z
-        for (i in 0 until size) {
-            val c = sqrt(counts[i])
-            var j = 0
-            while (j < c * xxn) {
-                negatives_.add(i)
-                j++
-            }
-        }
-        negatives = negatives_.toArray()
-        shuffle(negatives, rng)
-    }
-
-    private fun buildTree(counts: LongArray) {
-        val pathsLocal = ArrayList<IntArray>(osz)
-        val codesLocal = ArrayList<BooleanArray>(osz)
-        val treeLocal = ArrayList<Node>(2 * osz - 1)
-
-        for (i in 0 until 2 * osz - 1) {
-            treeLocal.add(Node().apply {
-                this.parent = -1
-                this.left = -1
-                this.right = -1
-                this.count = 1000000000000000L// 1e15f;
-                this.binary = false
-            })
-        }
-
-        for (i in 0 until osz) {
-            treeLocal[i].count = counts[i]
-        }
-
-        var leaf = osz - 1
-        var node = osz
-        for (i in osz until 2 * osz - 1) {
-            val mini = IntArray(2)
-            for (j in 0..1) {
-                if (leaf >= 0 && treeLocal[leaf].count < treeLocal[node].count) {
-                    mini[j] = leaf--
-                } else {
-                    mini[j] = node++
-                }
-            }
-            treeLocal[i].apply {
-                this.left = mini[0]
-                this.right = mini[1]
-                this.count = treeLocal[mini[0]].count + treeLocal[mini[1]].count
-            }
-            treeLocal[mini[0]].parent = i
-            treeLocal[mini[1]].parent = i
-            treeLocal[mini[1]].binary = true
-        }
-
-        for (i in 0 until osz) {
-            val path = ArrayList<Int>()
-            val code = ArrayList<Boolean>()
-
-            var j = i
-            while (treeLocal[j].parent != -1) {
-                path.add(treeLocal[j].parent - osz)
-                code.add(treeLocal[j].binary)
-                j = treeLocal[j].parent
-            }
-            pathsLocal.add(path.toIntArray())
-            codesLocal.add(code.toBooleanArray())
-        }
-
-        this.paths = pathsLocal
-        this.codes = codesLocal
-        this.tree = treeLocal
-    }
-
-    companion object {
-        private val tSigmoid: FloatArray = FloatArray(SIGMOID_TABLE_SIZE + 1, { i ->
-            val x = (i * 2 * MAX_SIGMOID).toFloat() / SIGMOID_TABLE_SIZE - MAX_SIGMOID
-            (1.0f / (1.0f + Math.exp((-x).toDouble()))).toFloat()
-        })
-
-        private val tLog: FloatArray = FloatArray(LOG_TABLE_SIZE + 1, { i ->
-            val x = (i.toFloat() + 1e-5f) / LOG_TABLE_SIZE
-            Math.log(x.toDouble()).toFloat()
-        })
-
-        fun log(x: Float): Float {
-            if (x > 1.0f) {
-                return 0.0f
-            }
-            val i = (x * LOG_TABLE_SIZE).toInt()
-            return tLog[i]
-        }
-
-        fun sigmoid(x: Float): Float {
-            return when {
-                x < -MAX_SIGMOID -> 0.0f
-                x > MAX_SIGMOID -> 1.0f
-                else -> {
-                    val i = ((x + MAX_SIGMOID) * SIGMOID_TABLE_SIZE / MAX_SIGMOID.toFloat() / 2f).toInt()
-                    tSigmoid[i]
-                }
-            }
-        }
-    }
-}
-
-/**
- * 从C语言版本的FastText产生的模型文件
- */
-object LoadFastTextFromClangModel {
-
-    /**
-     * Load binary model file. 这个二进制版本是C语言版本的模型
-     * @param input C语言版本的模型的InputStream
-     * @return FastTextModel
-     * @throws Exception
-     */
-    @Throws(Exception::class)
-    fun loadCModel(input: InputStream): FastText {
-        input.buffered(1024*1024).use {
-            val buffer = AutoDataInput(DataInputStream(it), ByteOrder.LITTLE_ENDIAN)
-
-            //check model
-            val magic = buffer.readInt()
-            val version = buffer.readInt()
-
-            if (magic != FASTTEXT_FILEFORMAT_MAGIC_INT32) {
-                throw RuntimeException("Model file has wrong file format!")
-            }
-
-            if (version > FASTTEXT_VERSION) {
-                throw RuntimeException("Model file has wrong file format! version is $version")
-            }
-
-            //Args
-            val args_ = Args()
-            args_.loadClang(buffer)
-
-            if (version == 11 && args_.model == ModelName.sup) {
-                // backward compatibility: old supervised models do not use char ngrams.
-                args_.maxn = 0
-            }
-
-            //dictionary
-            val dictionary = Dictionary(args_)
-            dictionary.load(buffer)
-
-            var input: FloatMatrix = FloatMatrix.floatArrayMatrix(0, 0)
-            var qinput: QMatrix? = null
-
-            val quantInput = buffer.readUnsignedByte() != 0
-            if (quantInput) {
-                qinput = QMatrix.load(buffer)
-            } else {
-                input = buffer.loadFloatMatrix()
-            }
-
-            if (!quantInput && dictionary.isPruned()) {
-                throw RuntimeException("Invalid model file.\n"
-                        + "Please download the updated model from www.fasttext.cc.\n"
-                        + "See issue #332 on Github for more information.\n")
-            }
-
-            var output: FloatMatrix = FloatMatrix.floatArrayMatrix(0, 0)
-            var qoutput: QMatrix? = null
-
-            args_.qout = buffer.readUnsignedByte().toInt() != 0
-            if (quantInput && args_.qout) {
-                qoutput = QMatrix.load(buffer)
-            } else {
-                output = buffer.loadFloatMatrix()
-            }
-
-            val model = Model(input, output, args_, 0)
-            model.quant = quantInput
-
-            model.setQuantizePointer(qinput, qoutput, args_.qout)
-
-
-            if (args_.model == ModelName.sup) {
-                model.setTargetCounts(dictionary.getCounts(EntryType.label))
-            } else {
-                model.setTargetCounts(dictionary.getCounts(EntryType.word))
-            }
-
-
-            return if (model.quant) {
-                FastText(args_, dictionary, input, output, model, true, qinput!!, qoutput)
-            } else {
-                FastText(args_, dictionary, input, output, model)
-            }
-        }
-    }
-
-    /**
-     * Load binary model file. 这个二进制版本是C语言版本的模型
-     * @param modelPath
-     * @return FastTextModel
-     * @throws Exception
-     */
-    @Throws(Exception::class)
-    fun loadCModel(modelFile: File): FastText {
-
-        if (!(modelFile.exists() && modelFile.isFile && modelFile.canRead())) {
-            throw IOException("Model file cannot be opened for loading!")
-        }
-
-        return loadCModel(modelFile.inputStream())
-    }
-
-    /**
-     * Load binary model file. 这个二进制版本是C语言版本的模型
-     * @param modelPath
-     * @return FastTextModel
-     * @throws Exception
-     */
-    @Throws(Exception::class)
-    fun loadCModel(modelPath: String): FastText {
-        val modelFile = File(modelPath)
-
-        if (!(modelFile.exists() && modelFile.isFile && modelFile.canRead())) {
-            throw IOException("Model file cannot be opened for loading!")
-        }
-
-        return loadCModel(modelFile.inputStream())
-    }
-}

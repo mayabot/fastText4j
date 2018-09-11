@@ -27,12 +27,32 @@ import java.io.File
 fun main(args: Array<String>) {
     val file = File("src/example/resources/ag.train")
 
-    val train = FastText.train(file, ModelName.sup)
+    val model = FastText.train(file, ModelName.sup)
 
-    train.saveModel("data/fasttext/javamodel")
 
-    AgnewsTest.predict(train)
 
+    model.saveModel("data/fasttext/javamodel")
+
+    AgnewsTest.predict(model)
+
+
+    println("----------------")
+    //load model
+    val loadedModel = FastText.loadModel("data/fasttext/javamodel",false)
+    AgnewsTest.predict(loadedModel)
+//
+    println("----------量化")
+
+    val qfst = FastText.quantize(model)
+
+    AgnewsTest.predict(qfst)
+
+    qfst.saveModel("data/fasttext/javamodel.qu")
+
+    println("-------------")
+
+    val loadedModel2 = FastText.loadModel("data/fasttext/javamodel.qu",false)
+    AgnewsTest.predict(loadedModel2)
 }
 
 object AgnewsTest{
