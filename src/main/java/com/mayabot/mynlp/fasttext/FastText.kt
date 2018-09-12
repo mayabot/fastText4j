@@ -478,6 +478,9 @@ class FastText(internal val args: Args,
          *
          * @param out
          */
+        @JvmOverloads
+        @Throws(Exception::class)
+        @JvmStatic
         fun quantize(fastText: FastText,
                      dsub:Int=2,
                      qnorm:Boolean=false):FastText {
