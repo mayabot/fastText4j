@@ -465,6 +465,12 @@ class FastText(internal val args: Args,
             return FastTextTrain().train(trainFile, model_name, args)
         }
 
+        @JvmOverloads
+        @Throws(Exception::class)
+        @JvmStatic
+        fun train(source: TrainExampleSource, model_name: ModelName = ModelName.sup, args: TrainArgs = TrainArgs()): FastText {
+            return FastTextTrain().train(source, model_name, args)
+        }
 
 
         /**

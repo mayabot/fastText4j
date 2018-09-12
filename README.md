@@ -24,7 +24,7 @@ But it could be much optimised through mmap with limited RAM and time(around 3 s
 
 ### Gradle
 ```
-compile 'com.mayabot:fastText4j:1.2.0'
+compile 'com.mayabot:fastText4j:1.2.1'
 
 ```
 
@@ -33,7 +33,7 @@ compile 'com.mayabot:fastText4j:1.2.0'
 <dependency>
   <groupId>com.mayabot</groupId>
   <artifactId>fastText4j</artifactId>
-  <version>1.2.0</version>
+  <version>1.2.1</version>
 </dependency>
 ```
 
