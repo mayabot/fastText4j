@@ -397,7 +397,7 @@ class FastText(internal val args: Args,
          */
         @JvmOverloads
         @JvmStatic
-        fun loadModel(modelPath: String, mmap: Boolean = true): FastText {
+        fun loadModel(modelPath: String, mmap: Boolean = false): FastText {
             val dir = File(modelPath)
 
             if (!dir.exists() || dir.isFile) {
