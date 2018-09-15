@@ -2,6 +2,8 @@
 
    Implementing Facebook's FastText with java. [Fasttext](https://github.com/facebookresearch/fastText/) is a library for text representation and classification by facebookresearch. It implements text classification and word embedding learning.
    
+   [中文文档](https://github.com/mayabot/fastText4j/wiki/FastText4j%E4%B8%AD%E6%96%87%E6%96%87%E6%A1%A3)
+   
 Features:
 
  * Implementing with java(kotlin)
