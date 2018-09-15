@@ -1,25 +1,20 @@
-## Fasttext Introduction
+## Fasttext 
 
  [Fasttext](https://github.com/facebookresearch/fastText/) is a library for text representation and classification by facebookresearch. It implements text classification and word embedding learning.
  
 
 ## FastText4j
 
-  A java version implementation of fasttext in kotlin. Features:
+   Implementing Facebook's FastText with java. 
+   
+Features:
 
  * 100% in java
- * Compatible with original C++ model
-
-   It can read all trained models from fasttext directly
- * Compatible with the original product quantizer compression model
- * Provides APIs for training(with equivalent performance)
- * Support for customing storage formats
- * Support reading model files in mmap
-
-The scale of official model for chinese wiki is about 2.8G, which needs, at least, 4G for jvm in general. Moreover, it takes longer time for loading model files than C++ version.
-
-But it could be much optimised through mmap with limited RAM and time(around 3 seconds).
-
+ * Compatible with original C++ model file (include quantizer compression model)
+ * Provides training api (almost the same performance)
+ * Support for java file formats( can read file use mmap),read big model file with less memory
+ * Well-designed API
+ 
 ## Installing
 
 ### Gradle
@@ -37,128 +32,75 @@ compile 'com.mayabot:fastText4j:1.2.2'
 </dependency>
 ```
 
-## Example use cases
+## Tutorial
 
-### 1.Word embedding model
+### 1. Train model
+![GitHub](https://cdn.mayabot.com/nlp/wiki-images/fast_train.png "GitHub,Social Coding")
+
+- ModelName.sup supervised
+- ModelName.sg   skipgram
+- ModelName.cow cbow
+
 ```java
-File file = new File("data/fasttext/data.text");
+//Word representation learning
+FastText fastText = FastText.train(new File("train.data"), ModelName.sg);
 
-FastText fastText = FastText.train(file, ModelName.sg);
+// Text classification
 
-fastText.saveModel("data/fasttext/model.bin");
-```
-data.txt is the file of data, stored in utf-8. Before training, it is necessary to do word spliting to get training set. By default, it will use 3-6 char ngram. Additionally, cow algorithm is implemented as well. For more parameter tuning if needed, please provide TrainArgs object.
+FastText fastText = FastText.train(new File("train.data"), ModelName.sup);
 
-### 2.Classification model
-```java
-File file = new File("data/fasttext/data.txt");
-
-FastText fastText = FastText.train(file, ModelName.sup);
-
-fastText.saveModel("data/fasttext/model.bin");
-```
-data.txt is also encoded in utf-8 with one sample each line. And it needs to do word spliting beforehand as well. There is a string starting with ```__label__``` in each line，representing the classifying target, such as ```__label__正面```. Each sample could have  multiple label. Through the attribute 'label' in TrainArgs, you can customise the head. 
-
-Invoke predict method to classify after the model trained.
-
-
-
-### 3.Saving official model in java
-```java
-FastText fastText = FastText.loadFasttextBinModel("data/fasttext/wiki.zh.bin");
-fastText.saveModel("data/fasttext/wiki.model");
 ```
 
-### 4.Predict
+data.txt is also encoded in utf-8 with one sample each line. And it needs to do word spliting beforehand as well. There is a string starting with ```__label__``` in each line，representing the classifying target, such as ```__label__正面```. Each sample could have  multiple label. Through the attribute 'label' in TrainArgs, you can customise the head.
+
+### 2. save model
+
+save model to java format
+```java
+fastText.saveModel("path/data.model");
+```
+
+### 3. load model
+
+public Fasttext loadModel(String modelPath, boolean mmap)
+
+```java
+//load from java format 
+FastText fastText = FastText.loadModel("path/data.model",true);
+
+//load from c++ format
+FastText fastText = FastText.loadFasttextBinModel("path/wiki.bin") 
+
+```
+
+### 4. quantizer compression
+ FastText quantize(FastText fastText , int dsub=2, boolean qnorm=false)
+```java
+//load from java format 
+FastText quantizerFastText = FastText.quantize(fastText,2,false);
+```
+
+
+### 5.Predict
 ```java
 //predict the result of a word
-FastText fastText = FastText.loadCModel("data/fasttext/wiki.zh.bin");
 List<FloatStringPair> predict = fastText.predict(Arrays.asList("fastText在预测标签时使用了非线性激活函数".split(" ")), 5);
 ```
 
-### 5.Nearest Neighbor Search
+### 6.Nearest Neighbor Search
 ```java
-FastText fastText = FastText.loadCModel("data/fasttext/wiki.zh.bin");
-
 List<FloatStringPair> predict = fastText.nearestNeighbor("中国",5);
 ```
 
-### 6.Analogies
+### 7.Analogies
 By giving three words A, B and C, return the nearest words in terms of semantic distance and their similarity list, under the condition of (A - B + C).
 ```java
-FastText fastText = FastText.loadCModel("data/fasttext/wiki.zh.bin");
-
 List<FloatStringPair> predict = fastText.analogies("国王","皇后","男",5);
 ```
 
-## Api
-```java
 
- /**
- * classify the label by sup model
- */
- List<FloatStringPair> predict(Iterable<String> tokens, k: Int)
+### Parameters of TrainArgs
 
- /**
- * nearest neighbor search
- * @param word 
- * @param k k most similar words
- */
- List<FloatStringPair> nearestNeighbor(String word, k: Int)
-
-/**
- * Analogies search
- * Query triplet (A - B + C)?
- */
- List<FloatStringPair> analogies(String A,String B,String C, k: Int)
-
- /**
- * The vector of a certain word
- */
- Vector getWordVector(String word)
-
- /**
- * The vector of a certain phrase
- */
- Vector getSentenceVector(Iterable<String> tokens)
-
- /**
- * Save the vector in text format
- */
- saveVectors(String fileName)
-
- /**
- * Save the model in binary format
- */
- saveModel(String file)
-
- /**
- * Model Training
- * @param File trainFile
- * @param model_name
- *  sg skipgram Use skipgram algorithm
- *  cow cbow Use cbow algorithm
- *  sup supervised Text classification
- * @param args Parameters 
- **/
- FastText FastText.train(File trainFile, ModelName model_name, TrainArgs args)
-
- /**
- * Load the model saved by saveModel method
- * @param file 
- * @param mmap Load by mmap model to accelerate and save RAM
- */
- Fasttext.loadModel(String file,boolean mmap)
-
-
- /**
- * Load model generated by C++ version(support bin & ftz).
- */
- Fasttext.loadFasttextBinModel(String binFile)
-```
-
-
-## Parameters of TrainArgs
 The parameters is consistant with the C++ version :
 ```
 The following arguments for the dictionary are optional:
