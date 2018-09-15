@@ -1,11 +1,6 @@
-## Fasttext 
-
- [Fasttext](https://github.com/facebookresearch/fastText/) is a library for text representation and classification by facebookresearch. It implements text classification and word embedding learning.
- 
-
 ## FastText4j
 
-   Implementing Facebook's FastText with java. 
+   Implementing Facebook's FastText with java. [Fasttext](https://github.com/facebookresearch/fastText/) is a library for text representation and classification by facebookresearch. It implements text classification and word embedding learning.
    
 Features:
 
@@ -20,7 +15,6 @@ Features:
 ### Gradle
 ```
 compile 'com.mayabot:fastText4j:1.2.2'
-
 ```
 
 ### Maven
