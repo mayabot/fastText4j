@@ -4,11 +4,11 @@
    
 Features:
 
- * 100% in java
+ * Implementing with java(kotlin)
+ * Well-designed API
  * Compatible with original C++ model file (include quantizer compression model)
  * Provides training api (almost the same performance)
  * Support for java file formats( can read file use mmap),read big model file with less memory
- * Well-designed API
  
 ## Installing
 
