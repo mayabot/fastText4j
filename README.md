@@ -92,6 +92,21 @@ By giving three words A, B and C, return the nearest words in terms of semantic 
 List<FloatStringPair> predict = fastText.analogies("国王","皇后","男",5);
 ```
 
+## Ag News example
+
+test agnews data set, train and predict by fastText4j
+
+Result:
+```text
+   Read 5M words
+   Number of words:  95812
+   Number of labels: 4
+   Progress: 100.00% words/sec/thread:  5792774 lr: 0.00000 loss: 0.28018 ETA: 0h 0m 0s
+   Train use time 5275 ms
+   total=7600
+   right=6889
+   rate 0.9064473684210527
+```
 
 ### Parameters of TrainArgs
 
