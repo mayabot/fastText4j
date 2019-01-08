@@ -160,6 +160,14 @@ class TrainArgs {
      */
     var pretrainedVectors: String = ""
 
+    var bucket:Int? = null
+    var minCount :Int? = null
+    var minCountLabel:Int? = null
+    var wordNgrams :Int? = null
+    var minn :Int? = null
+    var maxn :Int? = null
+    var t :Double? = null
+
 }
 
 

@@ -41,6 +41,15 @@ class FastTextTrain {
 
     fun train(file: TrainExampleSource,modelName: ModelName, trainArgs: TrainArgs): FastText {
         args = Args().apply {
+
+            bucket = trainArgs.bucket ?: bucket
+            minCount  = trainArgs.minCount ?: minCount
+            minCountLabel = trainArgs.minCountLabel ?: minCountLabel
+            wordNgrams = trainArgs.wordNgrams ?: wordNgrams
+            minn = trainArgs.minn ?: minn
+            maxn  = trainArgs.maxn ?: maxn
+            t  = trainArgs.t ?: t
+
             model = modelName
             if (modelName == ModelName.sup) {
                 minCount = 1
