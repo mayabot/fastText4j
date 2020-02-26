@@ -1,123 +1,185 @@
-## FastText4j
-   
-   
-   Implementing Facebook's FastText with java. [Fasttext](https://github.com/facebookresearch/fastText/) is a library for text representation and classification by facebookresearch. It implements text classification and word embedding learning.
-   
-   代码迁移至Mynlp项目 [https://github.com/mayabot/mynlp/tree/master/fasttext](https://github.com/mayabot/mynlp/tree/master/fasttext)
+
+FastText4j implementing FastText with Kotlin&Java.
+[Fasttext](https://github.com/facebookresearch/fastText/) is a library for text representation and classification by facebookresearch.
+
+FastText4j是java&kotlin开发的fasttext算法库。[Fasttext](https://github.com/facebookresearch/fastText/) 是由facebookresearch开发的一个文本分类和词向量的库。
+
+代码迁移至Mynlp项目 [https://github.com/mayabot/mynlp/tree/master/fasttext](https://github.com/mayabot/mynlp/tree/master/fasttext) 。
+
+New code move to Mynlp project [https://github.com/mayabot/mynlp/tree/master/fasttext](https://github.com/mayabot/mynlp/tree/master/fasttext)
    
 Features:
 
  * Implementing with java(kotlin)
  * Well-designed API
  * Compatible with original C++ model file (include quantizer compression model)
- * Provides training api (almost the same performance)
+ * Provides train、test etc. api (almost the same performance)
  * Support for java file formats( can read file use mmap),read big model file with less memory
  
+Features:
+
+ * 100%由kotlin&java实现
+ * 良好的API
+ * 兼容官方原版的预训练模型
+ * 提供所有的包括train、test等api
+ * 支持自有模型存储格式，可以使用MMAP快速加载大模型
+
+
 ## Installing
 
 ### Gradle
 ```
-compile 'com.mayabot:fastText4j:1.2.2'
+compile 'com.mayabot.mynlp:fastText4j:3.1.0'
 ```
 
 ### Maven
 ```xml
 <dependency>
-  <groupId>com.mayabot</groupId>
+  <groupId>com.mayabot.mynlp</groupId>
   <artifactId>fastText4j</artifactId>
-  <version>1.2.2</version>
+  <version>3.1.0</version>
 </dependency>
 ```
 
-## Tutorial
+## API
 
-### 1. Train model
-![GitHub](https://cdn.mayabot.com/nlp/wiki-images/fast_train.png "GitHub,Social Coding")
+### Train model | 训练模型
 
-- ModelName.sup supervised
-- ModelName.sg   skipgram
-- ModelName.cow cbow
+#### 1. train Text classification model | 训练文本分类模型
 
 ```java
-//Word representation learning
-FastText fastText = FastText.train(new File("train.data"), ModelName.sg);
+File trainFile = new File("data/agnews/ag.train");
+InputArgs inputArgs = new InputArgs();
+inputArgs.setLoss(LossName.softmax);
+inputArgs.setLr(0.1);
+inputArgs.setDim(100);
+inputArgs.setEpoch(20);
 
-// Text classification
-
-FastText fastText = FastText.train(new File("train.data"), ModelName.sup);
-
+FastText model = FastText.trainSupervised(trainFile, inputArgs);
 ```
 
-data.txt is also encoded in utf-8 with one sample each line. And it needs to do word spliting beforehand as well. There is a string starting with ```__label__``` in each line，representing the classifying target, such as ```__label__正面```. Each sample could have  multiple label. Through the attribute 'label' in TrainArgs, you can customise the head.
+主要参数说明：
+- loss 损失函数
+    - hs 分层softmax.比完全softmax慢一点。
+      分层softmax是完全softmax损失的近似值，它允许有效地训练大量类。
+      还请注意，这种损失函数被认为是针对不平衡的label class，即某些label比其他label更多出现在样本。
+       如果您的数据集每个label的示例数量均衡，则值得尝试使用负采样损失（-loss ns -neg 100）。
+    - ns NegativeSamplingLoss 负采样
+    - softmax default for Supervised model
+    - ova  one-vs-all 可用于多分类.“OneVsAll” loss function for multi-label classification, which corresponds to the sum of binary cross-entropy computed independently for each label.
+- lr 学习率learn rate 
+- dim 向量维度
+- epoch 迭代次数
+训练数据格式:
 
-### 2. save model
+where train.txt is a text file containing a training sentence per line along with the labels. By default, we assume that labels are words that are prefixed by the string __label__. This will output two files: model.bin and model.vec. Once the model was trained, you can evaluate it by computing the precision and recall at k (P@k and R@k) on a test set using:
 
-save model to java format
+训练数据是个纯文本文件，每一行一条数据，词之间使用空格分开，每一行必须包含至少一个label标签。默认
+情况下，是一个带`__label__`前缀的字符串。
+> __label__tag1  saints rally to beat 49ers the new orleans saints survived it all hurricane ivan
+> 
+> __label__积极  这个 商品 很 好 用 。 
+
+
+
+#### 2. word representation learning |  词向量学习 
+
+支持cow和Skipgram两种模型
+
 ```java
-fastText.saveModel("path/data.model");
+FastText.trainCow(file,inputArgs)
+//Or
+FastText.trainSkipgram(file,inputArgs)
 ```
 
-### 3. load model
+### Test model
+```java
+File trainFile = new File("data/agnews/ag.train");
+InputArgs inputArgs = new InputArgs();
+inputArgs.setLoss(LossName.softmax);
+inputArgs.setLr(0.1);
+inputArgs.setDim(100);
 
-public Fasttext loadModel(String modelPath, boolean mmap)
+FastText model = FastText.trainSupervised(trainFile, inputArgs);
+
+model.test(new File("data/agnews/ag.test"),1,0,true);
+```
+
+output:
+
+```
+F1-Score : 0.968954 Precision : 0.960683 Recall : 0.977368  __label__2
+F1-Score : 0.882043 Precision : 0.882508 Recall : 0.881579  __label__3
+F1-Score : 0.890173 Precision : 0.888772 Recall : 0.891579  __label__4
+F1-Score : 0.917353 Precision : 0.926463 Recall : 0.908421  __label__1
+N	7600
+P@1	0.915
+R@1	0.915
+```
+
+
+### Save model | 保存模型文件
+
+```java
+FastText model = FastText.trainSupervised(trainFile, inputArgs);
+model.saveModel(new File("path/data.model"));
+```
+
+### Load model | 加载模型
 
 ```java
 //load from java format 
-FastText fastText = FastText.loadModel("path/data.model",true);
+FastText model = FastText.Companion.loadModel(new File(""),false);
+```
 
+```java
 //load from c++ format
-FastText fastText = FastText.loadFasttextBinModel("path/wiki.bin") 
-
+FastText model = FastText.Companion.loadCppModel(new File("path/wiki.bin"))
 ```
 
-### 4. quantizer compression
- FastText quantize(FastText fastText , int dsub=2, boolean qnorm=false)
+### Quantizer compression | 乘积量化压缩
+    分类的模型可以压缩模型体积
+
 ```java
 //load from java format 
-FastText quantizerFastText = FastText.quantize(fastText,2,false);
+FastText qmodel = model.quantize(2, false, false);
 ```
 
 
-### 5.Predict
+### Predict | 预测分类
 ```java
-//predict the result of a word
-List<FloatStringPair> predict = fastText.predict(Arrays.asList("fastText在预测标签时使用了非线性激活函数".split(" ")), 5);
+List<ScoreLabelPair> result = model.predict(Arrays.asList("fastText 在 预测 标签 时 使用 了 非线性 激活 函数".split(" ")), 5,0);
 ```
 
-### 6.Nearest Neighbor Search
+### Nearest Neighbor Search | 词向量近邻
 ```java
-List<FloatStringPair> predict = fastText.nearestNeighbor("中国",5);
+List<ScoreLabelPair> result = model.nearestNeighbor("中国",5);
 ```
 
-### 7.Analogies
+### Analogies | 类比
 By giving three words A, B and C, return the nearest words in terms of semantic distance and their similarity list, under the condition of (A - B + C).
 ```java
-List<FloatStringPair> predict = fastText.analogies("国王","皇后","男",5);
+List<ScoreLabelPair> result = fastText.analogies("国王","皇后","男",5);
 ```
 
-## Ag News example
+### Parameter | 参数
+`InputArgs`可以设置各种参数，兼容fasttext原版参数。
 
-test agnews data set, train and predict by fastText4j
 
-Result:
-```text
-   Read 5M words
-   Number of words:  95812
-   Number of labels: 4
-   Progress: 100.00% words/sec/thread:  5792774 lr: 0.00000 loss: 0.28018 ETA: 0h 0m 0s
-   Train use time 5275 ms
-   total=7600
-   right=6889
-   rate 0.9064473684210527
 ```
+$ ./fasttext supervised
+Empty input or output path.
 
-### Parameters of TrainArgs
+The following arguments are mandatory:
+  -input              training file path
+  -output             output file path
 
-The parameters is consistant with the C++ version :
-```
+The following arguments are optional:
+  -verbose            verbosity level [2]
+
 The following arguments for the dictionary are optional:
-  -minCount           minimal number of word occurences [1]
-  -minCountLabel      minimal number of label occurences [0]
+  -minCount           minimal number of word occurrences [1]
+  -minCountLabel      minimal number of label occurrences [0]
   -wordNgrams         max length of word ngram [1]
   -bucket             number of buckets [2000000]
   -minn               min length of char ngram [0]
@@ -145,63 +207,11 @@ The following arguments for quantization are optional:
   -dsub               size of each sub-vector [2]
 ```
 
+Defaults may vary by mode. (Word-representation modes `skipgram` and `cbow` use a default `-minCount` of 5.)
+
+
 ## Resource
 ### Official pre-trained model
-Recent state-of-the-art [English word vectors](https://fasttext.cc/docs/en/english-vectors.html).<br/>
-Word vectors for [157 languages trained on Wikipedia and Crawl](https://github.com/facebookresearch/fastText/blob/master/docs/crawl-vectors.md).<br/>
-Models for [language identification](https://fasttext.cc/docs/en/language-identification.html#content) and [various supervised tasks](https://fasttext.cc/docs/en/supervised-models.html#content).
-
-## References
-
-Please cite [1](#enriching-word-vectors-with-subword-information) if using this code for learning word representations or [2](#bag-of-tricks-for-efficient-text-classification) if using for text classification.
-
-### Enriching Word Vectors with Subword Information
-
-[1] P. Bojanowski\*, E. Grave\*, A. Joulin, T. Mikolov, [*Enriching Word Vectors with Subword Information*](https://arxiv.org/abs/1607.04606)
-
-```
-@article{bojanowski2017enriching,
-  title={Enriching Word Vectors with Subword Information},
-  author={Bojanowski, Piotr and Grave, Edouard and Joulin, Armand and Mikolov, Tomas},
-  journal={Transactions of the Association for Computational Linguistics},
-  volume={5},
-  year={2017},
-  issn={2307-387X},
-  pages={135--146}
-}
-```
-
-### Bag of Tricks for Efficient Text Classification
-
-[2] A. Joulin, E. Grave, P. Bojanowski, T. Mikolov, [*Bag of Tricks for Efficient Text Classification*](https://arxiv.org/abs/1607.01759)
-
-```
-@InProceedings{joulin2017bag,
-  title={Bag of Tricks for Efficient Text Classification},
-  author={Joulin, Armand and Grave, Edouard and Bojanowski, Piotr and Mikolov, Tomas},
-  booktitle={Proceedings of the 15th Conference of the European Chapter of the Association for Computational Linguistics: Volume 2, Short Papers},
-  month={April},
-  year={2017},
-  publisher={Association for Computational Linguistics},
-  pages={427--431},
-}
-```
-
-### FastText.zip: Compressing text classification models
-
-[3] A. Joulin, E. Grave, P. Bojanowski, M. Douze, H. Jégou, T. Mikolov, [*FastText.zip: Compressing text classification models*](https://arxiv.org/abs/1612.03651)
-
-```
-@article{joulin2016fasttext,
-  title={FastText.zip: Compressing text classification models},
-  author={Joulin, Armand and Grave, Edouard and Bojanowski, Piotr and Douze, Matthijs and J{\'e}gou, H{\'e}rve and Mikolov, Tomas},
-  journal={arXiv preprint arXiv:1612.03651},
-  year={2016}
-}
-```
-
-(\* These authors contributed equally.)
-
-## License
-
-fastText is BSD-licensed. [facebook provide an additional patent grant.](https://github.com/facebookresearch/fastText/blob/master/PATENTS)
+- Recent state-of-the-art [English word vectors](https://fasttext.cc/docs/en/english-vectors.html).
+- Word vectors for [157 languages trained on Wikipedia and Crawl](https://github.com/facebookresearch/fastText/blob/master/docs/crawl-vectors.md).
+- Models for [language identification](https://fasttext.cc/docs/en/language-identification.html#content) and [various supervised tasks](https://fasttext.cc/docs/en/supervised-models.html#content).
