@@ -29,7 +29,7 @@ Features:
 
 ### Gradle
 ```
-compile 'com.mayabot.mynlp:fastText4j:3.1.0'
+compile 'com.mayabot.mynlp:fastText4j:3.1.2'
 ```
 
 ### Maven
@@ -37,7 +37,7 @@ compile 'com.mayabot.mynlp:fastText4j:3.1.0'
 <dependency>
   <groupId>com.mayabot.mynlp</groupId>
   <artifactId>fastText4j</artifactId>
-  <version>3.1.0</version>
+  <version>3.1.2</version>
 </dependency>
 ```
 
